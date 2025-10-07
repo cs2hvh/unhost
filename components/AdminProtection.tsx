@@ -1,7 +1,8 @@
 'use client';
 
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/app/provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { isAdmin } from '@/lib/utils';
 import { FaShieldAlt, FaExclamationTriangle } from 'react-icons/fa';
 
 interface AdminProtectionProps {
@@ -10,15 +11,7 @@ interface AdminProtectionProps {
 }
 
 export default function AdminProtection({ children, fallback }: AdminProtectionProps) {
-  const { user, loading, isAdmin } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#60A5FA]/30 border-t-[#60A5FA] rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const { user } = useAuth();
 
   if (!user) {
     return (
@@ -38,7 +31,7 @@ export default function AdminProtection({ children, fallback }: AdminProtectionP
     );
   }
 
-  if (!isAdmin) {
+  if (!isAdmin(user)) {
     return fallback || (
       <div className="min-h-screen bg-black flex items-center justify-center px-4">
         <Card className="max-w-md bg-white/5 border-white/10 text-center text-white/80">

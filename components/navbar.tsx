@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { FaBars, FaTimes, FaChevronDown, FaUser } from "react-icons/fa";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/app/provider";
 
 export default function Navbar() {
   const pathname = usePathname();

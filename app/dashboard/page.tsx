@@ -2,9 +2,9 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FaWallet, FaServer, FaChartLine, FaRocket } from 'react-icons/fa';
+import { useAuth } from '../provider';
 
 export default function Dashboard() {
   const { user } = useAuth();

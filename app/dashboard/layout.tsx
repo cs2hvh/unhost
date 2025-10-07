@@ -1,7 +1,5 @@
 'use client';
 
-import { useAuth } from '@/hooks/useAuth';
-import { useAuthToken } from '@/hooks/useAuthToken';
 import { useWallet } from '@/hooks/useWallet';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
@@ -22,6 +20,8 @@ import {
   FaChevronRight,
   FaChevronDown,
 } from 'react-icons/fa';
+import { useAuth } from '../provider';
+import { isAdmin } from '@/lib/utils';
 
 const sidebarItems = [
   {
@@ -59,9 +59,8 @@ function DashboardContent({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, signOut, isAdmin } = useAuth();
+  const { user, signOut } = useAuth();
   const { balance, loading: walletLoading } = useWallet();
-  useAuthToken(); // Manage auth token in cookies for middleware
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -73,24 +72,17 @@ function DashboardContent({
   const [settingsOpen, setSettingsOpen] = useState(true);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth/signin');
+    if (!user) {
+      router.push('/auth');
     }
-  }, [user, loading, router]);
+  }, [user, router]);
 
   useEffect(() => {
-    if (!loading && user && !isAdmin && pathname?.startsWith('/dashboard/admin')) {
+    if (user && !isAdmin(user) && pathname?.startsWith('/dashboard/admin')) {
       router.replace('/dashboard');
     }
-  }, [loading, user, isAdmin, pathname, router]);
+  }, [user, isAdmin, pathname, router]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#60A5FA]/30 border-t-[#60A5FA] rounded-full animate-spin"></div>
-      </div>
-    );
-  }
 
   if (!user) {
     return null;
@@ -139,11 +131,10 @@ function DashboardContent({
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${
-                        active
-                          ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
-                      }`}
+                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${active
+                        ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
+                        : 'text-white/70 hover:text-white hover:bg-white/5'
+                        }`}
                       title={collapsed ? item.name : undefined}
                     >
                       <div className={`p-1 rounded-lg ${active ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
@@ -164,11 +155,10 @@ function DashboardContent({
                   <button
                     type="button"
                     onClick={() => setServersOpen((v) => !v)}
-                    className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${
-                      pathname?.startsWith('/dashboard/servers')
-                        ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                        : 'text-white/70 hover:text-white hover:bg-white/5'
-                    }`}
+                    className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${pathname?.startsWith('/dashboard/servers')
+                      ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                      }`}
                     title={collapsed ? 'Servers' : undefined}
                   >
                     <div className={`p-1 rounded-lg ${pathname?.startsWith('/dashboard/servers') ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
@@ -188,11 +178,10 @@ function DashboardContent({
                         return (
                           <Link
                             href={'/dashboard/servers?view=deploy'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
+                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                              }`}
                           >
                             Deploy Instance
                           </Link>
@@ -203,11 +192,10 @@ function DashboardContent({
                         return (
                           <Link
                             href={'/dashboard/servers?view=list'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
+                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                              }`}
                           >
                             My Servers
                           </Link>
@@ -223,11 +211,10 @@ function DashboardContent({
                     <button
                       type="button"
                       onClick={() => setAdminOpen((v) => !v)}
-                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${
-                        pathname === '/dashboard/admin'
-                          ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
-                      }`}
+                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${pathname === '/dashboard/admin'
+                        ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
+                        : 'text-white/70 hover:text-white hover:bg-white/5'
+                        }`}
                       title={collapsed ? 'Admin' : undefined}
                     >
                       <div className={`p-1 rounded-lg ${pathname === '/dashboard/admin' ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
@@ -249,11 +236,10 @@ function DashboardContent({
                           return (
                             <Link
                               href={'/dashboard/admin?tab=hosts'}
-                              className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                                active
-                                  ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                  : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                              }`}
+                              className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                                }`}
                             >
                               Hosts
                             </Link>
@@ -264,11 +250,10 @@ function DashboardContent({
                         <button
                           type="button"
                           onClick={() => setAdminServersOpen((v) => !v)}
-                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
-                            pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'servers'
-                              ? 'text-white bg-white/10 border-white/15'
-                              : 'text-white/70 border-transparent hover:text-white hover:bg-white/5 hover:border-white/10'
-                          }`}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'servers'
+                            ? 'text-white bg-white/10 border-white/15'
+                            : 'text-white/70 border-transparent hover:text-white hover:bg-white/5 hover:border-white/10'
+                            }`}
                         >
                           <span className="flex-1 text-left">Servers</span>
                           <FaChevronDown className={`h-3 w-3 transition-transform ${adminServersOpen ? '' : '-rotate-90'}`} />
@@ -280,11 +265,10 @@ function DashboardContent({
                               return (
                                 <Link
                                   href={'/dashboard/admin?tab=servers&sv=provision'}
-                                  className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                                    active
-                                      ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                      : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                                  }`}
+                                  className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                                    ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                                    : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                                    }`}
                                 >
                                   Provision VM
                                 </Link>
@@ -295,11 +279,10 @@ function DashboardContent({
                               return (
                                 <Link
                                   href={'/dashboard/admin?tab=servers&sv=list'}
-                                  className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                                    active
-                                      ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                      : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                                  }`}
+                                  className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                                    ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                                    : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                                    }`}
                                 >
                                   Servers
                                 </Link>
@@ -314,11 +297,10 @@ function DashboardContent({
                           return (
                             <Link
                               href={'/dashboard/admin?tab=users'}
-                              className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                                active
-                                  ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                  : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                              }`}
+                              className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                                }`}
                             >
                               Users
                             </Link>
@@ -344,11 +326,10 @@ function DashboardContent({
                   {collapsed ? (
                     <Link
                       href="/dashboard/settings/profile"
-                      className={`group flex justify-center px-3 py-3 rounded-xl transition-all duration-200 ${
-                        pathname?.startsWith('/dashboard/settings')
-                          ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
-                      }`}
+                      className={`group flex justify-center px-3 py-3 rounded-xl transition-all duration-200 ${pathname?.startsWith('/dashboard/settings')
+                        ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
+                        : 'text-white/70 hover:text-white hover:bg-white/5'
+                        }`}
                       title="Settings"
                     >
                       <div className={`p-1 rounded-lg ${pathname?.startsWith('/dashboard/settings') ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
@@ -359,11 +340,10 @@ function DashboardContent({
                     <button
                       type="button"
                       onClick={() => setSettingsOpen((v) => !v)}
-                      className={`group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${
-                        pathname?.startsWith('/dashboard/settings')
-                          ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
-                      }`}
+                      className={`group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${pathname?.startsWith('/dashboard/settings')
+                        ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
+                        : 'text-white/70 hover:text-white hover:bg-white/5'
+                        }`}
                     >
                       <div className={`p-1 rounded-lg ${pathname?.startsWith('/dashboard/settings') ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
                         <FaCog className="h-5 w-5" />
@@ -379,11 +359,10 @@ function DashboardContent({
                         return (
                           <Link
                             href={'/dashboard/settings/profile'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
+                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                              }`}
                           >
                             Profile
                           </Link>
@@ -394,11 +373,10 @@ function DashboardContent({
                         return (
                           <Link
                             href={'/dashboard/settings/notifications'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
+                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                              }`}
                           >
                             Notifications
                           </Link>
@@ -409,11 +387,10 @@ function DashboardContent({
                         return (
                           <Link
                             href={'/dashboard/settings/preferences'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
+                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                              }`}
                           >
                             Preferences
                           </Link>
@@ -424,11 +401,10 @@ function DashboardContent({
                         return (
                           <Link
                             href={'/dashboard/settings/security'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
+                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                              }`}
                           >
                             Security
                           </Link>
