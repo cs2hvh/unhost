@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { createServerSupabase } from "@/lib/supabaseServer";
 import { LinodeAPIClient, LINODE_PLAN_TYPES } from "@/lib/linode";
 import { calculateHourlyCost, canAffordServer, type ServerSpecs } from "@/lib/pricing";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -17,13 +17,11 @@ function serializeError(err: unknown) {
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as any;
-  const authHeader = req.headers.get("authorization") || "";
-  const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7) : undefined;
 
   const region = String(body.region || body.location || "");
   if (!region) return Response.json({ ok: false, error: "region required" }, { status: 400 });
 
-  const supabase = createServerSupabase(bearer);
+  const supabase = await createClient();
 
   // Get Linode API token from environment
   const linodeToken = process.env.LINODE_API_TOKEN;
