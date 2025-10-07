@@ -81,6 +81,13 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'nowpayments.io',
+        port: '',
+        pathname: '/**',
+        search: '',
+      },
     ],
   },
 };
