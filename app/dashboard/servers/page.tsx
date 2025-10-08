@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/hooks/useUser";
 import { useWallet } from "@/hooks/useWallet";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FaServer, FaSync, FaCopy, FaPowerOff, FaPlay, FaRedo, FaCheck, FaChevronLeft, FaChevronRight, FaMapMarkerAlt, FaMicrochip, FaHdd, FaMemory, FaInfoCircle, FaCheckCircle, FaExternalLinkAlt, FaThumbsUp, FaWallet, FaExclamationTriangle } from "react-icons/fa";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -30,7 +30,7 @@ const fadeInUp = {
 };
 
 export default function ServersPage() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const { balance, loading: walletLoading } = useWallet();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -93,6 +93,7 @@ export default function ServersPage() {
     if (!user?.id) return;
     setMyLoading(true);
     try {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from("servers")
         .select("*")
@@ -106,6 +107,7 @@ export default function ServersPage() {
 
   const syncServerStatus = async (serverId: string) => {
     try {
+      const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       const res = await fetch("/api/linode/instances/sync", {
@@ -181,6 +183,7 @@ export default function ServersPage() {
     setError(null);
     setResult(null);
     try {
+      const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       const payload = {
@@ -226,6 +229,7 @@ export default function ServersPage() {
   const powerAction = async (serverId: string, action: "start" | "stop" | "reboot") => {
     setActingId(serverId);
     try {
+      const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       const res = await fetch("/api/linode/instances/power", {
@@ -261,6 +265,7 @@ export default function ServersPage() {
 
   const loadMetrics = async (serverId: string) => {
     try {
+      const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       const res = await fetch(`/api/linode/instances/metrics?serverId=${encodeURIComponent(serverId)}&range=hour`, { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined });
