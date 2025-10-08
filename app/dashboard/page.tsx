@@ -31,7 +31,7 @@ export default function Dashboard() {
               Welcome {user?.email ? user.email.split('@')[0] : 'back'}
             </h1>
             <p className="text-white/70 mt-2">
-              Manage infrastructure, monitor resources, and launch servers with ease.
+              Manage infrastructure, monitor your resources, and launch servers with ease.
             </p>
           </div>
         </div>
