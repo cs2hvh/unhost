@@ -17,10 +17,10 @@ export function hasAnyRole(user: User | null, roles: UserRole[]): boolean {
 export function isAdmin(user: User | null): boolean {
   // Check if user has admin role OR is the specific admin user
   // The token is stored in the email as {token}@example.com
-  const ADMIN_TOKEN = '2510-b8beb268-5150';
-  const adminEmail = `${ADMIN_TOKEN}@example.com`;
+  const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
+  const adminEmail = ADMIN_TOKEN ? `${ADMIN_TOKEN}@example.com` : '';
 
-  return user?.email === adminEmail || hasRole(user, 'admin');
+  return (adminEmail && user?.email === adminEmail) || hasRole(user, 'admin');
 }
 
 export function generateToken(): string {

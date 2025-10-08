@@ -42,7 +42,7 @@ function TopNav() {
             <div className="flex items-center justify-center w-7 h-7 rounded-md bg-white/10 border border-white/10">
               <span className="text-white font-semibold">U</span>
             </div>
-            <span className="text-white text-base md:text-lg font-semibold tracking-tight">Unserver</span>
+            <span className="text-white text-base md:text-lg font-semibold tracking-tight">Unhost</span>
           </Link>
 
           {/* Desktop nav */}

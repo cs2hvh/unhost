@@ -98,11 +98,11 @@ function DashboardContent({
         <div className="flex flex-col h-full overflow-hidden">
           {/* Sidebar top brand + collapse */}
           <div className={`px-3 ${collapsed ? 'justify-center' : 'justify-between'} flex items-center h-11 flex-shrink-0 pt-3`}>
-            <Link href="/" className={`flex items-center ${collapsed ? '' : 'gap-2'}`} title="Unserver">
+            <Link href="/" className={`flex items-center ${collapsed ? '' : 'gap-2'}`} title="Unhost">
               <div className="w-7 h-7 rounded-md bg-white/10 border border-white/10 flex items-center justify-center">
                 <span className="text-white text-sm font-semibold">U</span>
               </div>
-              {!collapsed && <span className="text-white/90 text-sm font-semibold tracking-wide">Unserver</span>}
+              {!collapsed && <span className="text-white/90 text-sm font-semibold tracking-wide">Unhost</span>}
             </Link>
             <button
               onClick={() => setCollapsed(!collapsed)}

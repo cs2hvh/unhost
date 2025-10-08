@@ -63,10 +63,10 @@ export async function requireAdmin(req: NextRequest): Promise<AdminGate> {
   }
 
   // Check if user email matches the admin token email
-  const ADMIN_TOKEN = '2510-b8beb268-5150';
-  const adminEmail = `${ADMIN_TOKEN}@example.com`;
+  const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
+  const adminEmail = ADMIN_TOKEN ? `${ADMIN_TOKEN}@example.com` : '';
 
-  if (email.toLowerCase() === adminEmail.toLowerCase()) {
+  if (adminEmail && email.toLowerCase() === adminEmail.toLowerCase()) {
     return { ok: true, email, isAdmin: true };
   }
 
