@@ -38,29 +38,20 @@ export async function signInOrCreateUser(
   email: string,
   password: string
 ) {
-  // Try sign in first
-  let { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  // Try sign up first
+  let { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  })
 
   if (error) {
-    // User might not exist
-    if (error.message === 'Invalid login credentials') {
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      })
+    // If user already exists, try signing in
+    if (error.message === 'User already registered') {
+      const { data: signInData, error: signInError } =
+        await supabase.auth.signInWithPassword({ email, password })
 
-      // If user already exists, try signing in again
-      if (signUpError?.message === 'User already registered') {
-        const { data: signInData, error: signInError } =
-          await supabase.auth.signInWithPassword({ email, password })
-
-        if (signInError) throw signInError
-        data = signInData
-      } else if (signUpError) {
-        throw signUpError
-      } else {
-        data = signUpData
-      }
+      if (signInError) throw signInError
+      data = signInData
     } else {
       throw error
     }
