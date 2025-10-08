@@ -66,8 +66,6 @@ function DashboardContent({
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [adminOpen, setAdminOpen] = useState(true);
-  const [adminServersOpen, setAdminServersOpen] = useState(true);
   const [serversOpen, setServersOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(true);
 
@@ -205,111 +203,31 @@ function DashboardContent({
                   )}
                 </div>
 
-                {/* Admin section with nested items */}
-                {isAdmin && (
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => setAdminOpen((v) => !v)}
-                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${pathname === '/dashboard/admin'
+                {/* Admin section */}
+                {isAdmin(user) && (() => {
+                  const active = pathname === '/dashboard/admin';
+                  return (
+                    <Link
+                      key="admin"
+                      href="/dashboard/admin"
+                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${active
                         ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
                         : 'text-white/70 hover:text-white hover:bg-white/5'
                         }`}
                       title={collapsed ? 'Admin' : undefined}
                     >
-                      <div className={`p-1 rounded-lg ${pathname === '/dashboard/admin' ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
+                      <div className={`p-1 rounded-lg ${active ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
                         <FaUserShield className="h-5 w-5" />
                       </div>
                       {!collapsed && (
-                        <>
-                          <span className="font-medium flex-1 text-left">Admin</span>
-                          <FaChevronDown className={`h-3.5 w-3.5 transition-transform ${adminOpen ? '' : '-rotate-90'}`} />
-                        </>
+                        <div className="flex-1">
+                          <div className="font-medium">Admin</div>
+                          <div className="text-xs text-white/50">User management</div>
+                        </div>
                       )}
-                    </button>
-
-                    {!collapsed && adminOpen && (
-                      <div className="mt-1 ml-8 space-y-1">
-                        {/* Hosts */}
-                        {(() => {
-                          const active = pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'hosts';
-                          return (
-                            <Link
-                              href={'/dashboard/admin?tab=hosts'}
-                              className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                                }`}
-                            >
-                              Hosts
-                            </Link>
-                          );
-                        })()}
-
-                        {/* Servers group */}
-                        <button
-                          type="button"
-                          onClick={() => setAdminServersOpen((v) => !v)}
-                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'servers'
-                            ? 'text-white bg-white/10 border-white/15'
-                            : 'text-white/70 border-transparent hover:text-white hover:bg-white/5 hover:border-white/10'
-                            }`}
-                        >
-                          <span className="flex-1 text-left">Servers</span>
-                          <FaChevronDown className={`h-3 w-3 transition-transform ${adminServersOpen ? '' : '-rotate-90'}`} />
-                        </button>
-                        {adminServersOpen && (
-                          <div className="ml-4 space-y-1">
-                            {(() => {
-                              const active = pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'servers' && (searchParams.get('sv') || 'provision') === 'provision';
-                              return (
-                                <Link
-                                  href={'/dashboard/admin?tab=servers&sv=provision'}
-                                  className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
-                                    ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                    : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                                    }`}
-                                >
-                                  Provision VM
-                                </Link>
-                              );
-                            })()}
-                            {(() => {
-                              const active = pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'servers' && (searchParams.get('sv') || 'provision') === 'list';
-                              return (
-                                <Link
-                                  href={'/dashboard/admin?tab=servers&sv=list'}
-                                  className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
-                                    ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                    : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                                    }`}
-                                >
-                                  Servers
-                                </Link>
-                              );
-                            })()}
-                          </div>
-                        )}
-
-                        {/* Users */}
-                        {(() => {
-                          const active = pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'users';
-                          return (
-                            <Link
-                              href={'/dashboard/admin?tab=users'}
-                              className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                                }`}
-                            >
-                              Users
-                            </Link>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                )}
+                    </Link>
+                  );
+                })()}
               </div>
             </nav>
 

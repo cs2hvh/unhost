@@ -123,6 +123,7 @@ export async function POST(req: NextRequest) {
       .from("servers")
       .insert({
         vmid: instance.id,
+        linode_id: instance.id, // Store Linode instance ID for deletion
         node: region,
         name: hostname,
         ip: primaryIP,

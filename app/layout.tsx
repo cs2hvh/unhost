@@ -26,14 +26,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getUserFromHeaders()
-
   return (
     <html lang="en" className="dark">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider initialUser={user}>
+        <AuthProvider>
           <Navbar />
           {children}
         </AuthProvider>

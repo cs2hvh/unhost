@@ -4,6 +4,8 @@ import { useAuth } from '@/app/provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { isAdmin } from '@/lib/utils';
 import { FaShieldAlt, FaExclamationTriangle } from 'react-icons/fa';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 interface AdminProtectionProps {
   children: React.ReactNode;
@@ -11,24 +13,25 @@ interface AdminProtectionProps {
 }
 
 export default function AdminProtection({ children, fallback }: AdminProtectionProps) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
-  if (!user) {
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center px-4">
-        <Card className="max-w-md bg-white/5 border-white/10 text-center text-white/80">
-          <CardHeader>
-            <div className="mx-auto h-12 w-12 rounded-full bg-red-500/20 border border-red-400/30 flex items-center justify-center mb-4">
-              <FaExclamationTriangle className="h-6 w-6 text-red-400" />
-            </div>
-            <CardTitle className="text-white">Authentication Required</CardTitle>
-            <CardDescription className="text-white/70">
-              Please sign in to access this page.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white/60">Loading...</div>
       </div>
     );
+  }
+
+  if (!user) {
+    return null;
   }
 
   if (!isAdmin(user)) {
@@ -41,13 +44,13 @@ export default function AdminProtection({ children, fallback }: AdminProtectionP
             </div>
             <CardTitle className="text-white">Admin Access Required</CardTitle>
             <CardDescription className="text-white/70">
-              You need administrator permissions to access this dashboard. Contact your system administrator if you believe this is an error.
+              You need administrator permissions to access this dashboard.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-white/50 space-y-1">
               <div>User: {user.email}</div>
-              <div>Role: User</div>
+              <div>User ID: {user.id}</div>
             </div>
           </CardContent>
         </Card>
