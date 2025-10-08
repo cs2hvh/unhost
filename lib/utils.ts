@@ -25,10 +25,10 @@ export function generateToken(): string {
   const prefix = `${year}${month}`
 
   const randomSegment1 = Array.from({ length: 8 }, () =>
-    Math.floor(Math.random() * 16).toString(16).toUpperCase()
+    Math.floor(Math.random() * 16).toString(16)
   ).join('')
   const randomSegment2 = Array.from({ length: 4 }, () =>
-    Math.floor(Math.random() * 16).toString(16).toUpperCase()
+    Math.floor(Math.random() * 16).toString(16)
   ).join('')
 
   return `${prefix}-${randomSegment1}-${randomSegment2}`
