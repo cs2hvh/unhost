@@ -25,13 +25,6 @@ import { isAdmin } from '@/lib/utils';
 
 const sidebarItems = [
   {
-    name: 'Dashboard',
-    href: '/dashboard',
-    icon: FaServer,
-    description: 'Overview and quick actions',
-    exact: true
-  },
-  {
     name: 'Servers',
     href: '/dashboard/servers',
     icon: FaServer,

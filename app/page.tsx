@@ -1,13 +1,56 @@
-﻿"use client";
+﻿﻿"use client";
 
 import { motion } from "framer-motion";
 import LightRays from "@/components/LightRays";
 import Link from "next/link";
 import { FaBitcoin, FaEthereum, FaShieldAlt, FaBolt, FaServer, FaMicrochip, FaHdd, FaNetworkWired, FaLock, FaGlobe, FaClock, FaCloudUploadAlt, FaCode, FaHeadset } from "react-icons/fa";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { WorldMap } from "@/components/ui/world-map";
+import { generateToken } from "@/lib/utils";
+import { toast } from "sonner";
+import { Loader2, LogIn, RefreshCw } from "lucide-react";
+import { useAuth } from "@/app/provider";
 
 export default function Home() {
+  const { user } = useAuth();
+  const [token, setToken] = useState(generateToken());
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshToken = () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    const newToken = generateToken();
+    setToken(newToken);
+    setTimeout(() => setIsRefreshing(false), 400);
+  };
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      });
+
+      if (response.ok) {
+        toast.success("Signed in successfully. Welcome back!");
+        window.location.href = '/dashboard/servers';
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Authentication failed");
+      }
+    } catch {
+      toast.error("Failed to authenticate. Please try again later.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Linode regions showcased on the map
   const regions = [
     "us-west",
@@ -104,14 +147,76 @@ export default function Home() {
             Launch secure virtual servers across global regions and pay with BTC/ETH/XMR. Fast, reliable infrastructure at your fingertips.
           </p>
 
-          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-            <Link href="/auth/signup" className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#60A5FA] to-[#3B82F6] px-6 py-3 text-white font-medium shadow-lg shadow-[#60A5FA]/20 hover:from-[#3B82F6] hover:to-[#1D4ED8] transition-colors">
-              Get Started
-            </Link>
-            <Link href="/dashboard/servers" className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-white/90 hover:bg-white/10 transition-colors">
-              <FaServer className="mr-2 h-4 w-4" /> Launch a Server
-            </Link>
-          </div>
+          {!user ? (
+            <form onSubmit={handleAuth} className="mt-8 max-w-md">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    placeholder="Enter your token"
+                    className="w-full px-4 py-3 pr-12 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-[#60A5FA] focus:border-transparent backdrop-blur-sm"
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRefreshToken}
+                    disabled={isRefreshing || isLoading}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white focus:outline-none disabled:cursor-not-allowed"
+                    title="Generate new token"
+                    aria-label={isRefreshing ? "Regenerating" : "Regenerate authentication token"}
+                  >
+                    <div className="relative w-4 h-4">
+                      <div
+                        className={`absolute inset-0 transition-all duration-200 ${
+                          isRefreshing ? "scale-100 opacity-100" : "scale-0 opacity-0"
+                        }`}
+                      >
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      </div>
+                      <div
+                        className={`absolute inset-0 transition-all duration-200 ${
+                          isRefreshing ? "scale-0 opacity-0" : "scale-100 opacity-100"
+                        }`}
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </button>
+                </div>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#60A5FA] to-[#3B82F6] px-6 py-3 text-white font-medium shadow-lg shadow-[#60A5FA]/20 hover:from-[#3B82F6] hover:to-[#1D4ED8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <LogIn className="mr-2 h-4 w-4" /> Get Started
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="mt-3 text-white/50 text-sm">
+                Enter your authentication token or{' '}
+                <button
+                  type="button"
+                  onClick={handleRefreshToken}
+                  className="text-[#60A5FA] hover:text-[#3B82F6] underline underline-offset-2"
+                >
+                  click to generate a new one
+                </button>
+              </p>
+            </form>
+          ) : (
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+              <Link href="/dashboard/servers" className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#60A5FA] to-[#3B82F6] px-6 py-3 text-white font-medium shadow-lg shadow-[#60A5FA]/20 hover:from-[#3B82F6] hover:to-[#1D4ED8] transition-colors">
+                <FaServer className="mr-2 h-4 w-4" /> Go to Dashboard
+              </Link>
+            </div>
+          )}
 
           <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
             <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">

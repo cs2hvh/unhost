@@ -76,7 +76,7 @@ function TopNav() {
                 </button>
                 {menuOpen && (
                   <div className="absolute right-0 mt-2 w-48 rounded-md border border-white/10 bg-black/80 backdrop-blur-md shadow-lg py-1">
-                    <Link href="/dashboard" className="block px-3 py-2 text-sm text-white/90 hover:bg-white/10">Dashboard</Link>
+                    <Link href="/dashboard/servers" className="block px-3 py-2 text-sm text-white/90 hover:bg-white/10">Dashboard</Link>
                     <button onClick={signOut} className="block w-full text-left px-3 py-2 text-sm text-white/90 hover:bg-white/10">Sign out</button>
                   </div>
                 )}
@@ -106,7 +106,7 @@ function TopNav() {
               </div>
             ) : (
               <div className="space-y-2">
-                <Link href="/dashboard" className="block px-2 py-2 text-white/90 hover:bg-white/10 rounded">Dashboard</Link>
+                <Link href="/dashboard/servers" className="block px-2 py-2 text-white/90 hover:bg-white/10 rounded">Dashboard</Link>
                 <button onClick={signOut} className="w-full text-left px-2 py-2 text-white/90 hover:bg-white/10 rounded">Sign out</button>
               </div>
             )}
