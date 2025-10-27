@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     location: region,
   };
 
-  const hourlyCost = calculateHourlyCost(serverSpecs);
+  const hourlyCost = await calculateHourlyCost(serverSpecs);
   const minimumHours = 1; // Require at least 1 hour of funding
 
   // Check user's wallet balance
@@ -69,7 +69,8 @@ export async function POST(req: NextRequest) {
 
       const balance = wallet?.balance ? parseFloat(wallet.balance) : 0;
 
-      if (!canAffordServer(balance, serverSpecs, minimumHours)) {
+      const canAfford = await canAffordServer(balance, serverSpecs, minimumHours);
+      if (!canAfford) {
         return Response.json({
           ok: false,
           error: `Insufficient wallet balance. Required: $${(hourlyCost * minimumHours).toFixed(4)}, Available: $${balance.toFixed(2)}`,

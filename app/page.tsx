@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import LightRays from "@/components/LightRays";
 import Link from "next/link";
+import Footer from "@/components/Footer";
 import { FaBitcoin, FaEthereum, FaShieldAlt, FaBolt, FaServer, FaMicrochip, FaHdd, FaNetworkWired, FaLock, FaGlobe, FaClock, FaCloudUploadAlt, FaCode, FaHeadset } from "react-icons/fa";
 import { useMemo, useState } from "react";
 import { WorldMap } from "@/components/ui/world-map";
@@ -51,46 +52,118 @@ export default function Home() {
     }
   };
 
-  // Linode regions showcased on the map
+  // Linode regions showcased on the map - ALL REGIONS
   const regions = [
-    "us-west",
+    // Americas
     "us-east",
-    "eu-west",
-    "eu-central",
-    "ap-south",
-    "ap-northeast",
-    "ap-southeast",
-    "ca-central",
-    "us-central",
+    "us-central", 
+    "us-west",
     "us-southeast",
+    "us-lax",
+    "us-mia",
+    "us-sea",
+    "us-ord",
+    "us-iad",
+    "ca-central",
+    "br-gru",
+    // Europe
+    "eu-west",
+    "gb-lon",
+    "eu-central",
+    "de-fra-2",
+    "fr-par",
+    "it-mil",
+    "nl-ams",
+    "se-sto",
+    "es-mad",
+    // Asia Pacific
+    "ap-south",
+    "sg-sin-2",
+    "ap-northeast",
+    "jp-tyo-3",
+    "jp-osa",
+    "ap-southeast",
+    "au-mel",
+    "ap-west",
+    "in-bom-2",
+    "in-maa",
+    "id-cgk",
   ];
 
   const regionCoords = useMemo(() => ({
-    "us-east": { lat: 39.0438, lng: -77.4874 },        // Newark, NJ
+    // Americas
+    "us-east": { lat: 40.7357, lng: -74.1724 },        // Newark, NJ
     "us-central": { lat: 32.7767, lng: -96.7970 },     // Dallas, TX
-    "us-west": { lat: 34.0522, lng: -118.2437 },       // Fremont, CA
+    "us-west": { lat: 37.5483, lng: -121.9886 },       // Fremont, CA
     "us-southeast": { lat: 33.7490, lng: -84.3880 },   // Atlanta, GA
+    "us-lax": { lat: 34.0522, lng: -118.2437 },        // Los Angeles, CA
+    "us-mia": { lat: 25.7617, lng: -80.1918 },         // Miami, FL
+    "us-sea": { lat: 47.6062, lng: -122.3321 },        // Seattle, WA
+    "us-ord": { lat: 41.8781, lng: -87.6298 },         // Chicago, IL
+    "us-iad": { lat: 38.9072, lng: -77.0369 },         // Washington, DC
     "ca-central": { lat: 43.6532, lng: -79.3832 },     // Toronto, Canada
-    "eu-west": { lat: 45.5074, lng: -0.1278 },         // London, UK
-    "eu-central": { lat: 40.1109, lng: 8.6821 },       // Frankfurt, Germany
-    "ap-south": { lat: -20.3521, lng: 103.8198 },      // Singapore
+    "br-gru": { lat: -23.5505, lng: -46.6333 },        // São Paulo, Brazil
+    // Europe
+    "eu-west": { lat: 51.5074, lng: -0.1278 },         // London, UK
+    "gb-lon": { lat: 51.5074, lng: -0.1278 },          // London 2, UK
+    "eu-central": { lat: 50.1109, lng: 8.6821 },       // Frankfurt, Germany
+    "de-fra-2": { lat: 50.1109, lng: 8.6821 },         // Frankfurt 2, Germany
+    "fr-par": { lat: 48.8566, lng: 2.3522 },           // Paris, France
+    "it-mil": { lat: 45.4642, lng: 9.1900 },           // Milan, Italy
+    "nl-ams": { lat: 52.3676, lng: 4.9041 },           // Amsterdam, Netherlands
+    "se-sto": { lat: 59.3293, lng: 18.0686 },          // Stockholm, Sweden
+    "es-mad": { lat: 40.4168, lng: -3.7038 },          // Madrid, Spain
+    // Asia Pacific
+    "ap-south": { lat: 1.3521, lng: 103.8198 },        // Singapore
+    "sg-sin-2": { lat: 1.3521, lng: 103.8198 },        // Singapore 2
     "ap-northeast": { lat: 35.6762, lng: 139.6503 },   // Tokyo, Japan
-    "ap-southeast": { lat: -50.0000, lng: 151.2093 },  // Sydney, Australia
+    "jp-tyo-3": { lat: 35.6762, lng: 139.6503 },       // Tokyo 3, Japan
+    "jp-osa": { lat: 34.6937, lng: 135.5023 },         // Osaka, Japan
+    "ap-southeast": { lat: -33.8688, lng: 151.2093 },  // Sydney, Australia
+    "au-mel": { lat: -37.8136, lng: 144.9631 },        // Melbourne, Australia
+    "ap-west": { lat: 19.0760, lng: 72.8777 },         // Mumbai, India
+    "in-bom-2": { lat: 19.0760, lng: 72.8777 },        // Mumbai 2, India
+    "in-maa": { lat: 13.0827, lng: 80.2707 },          // Chennai, India
+    "id-cgk": { lat: -6.2088, lng: 106.8456 },         // Jakarta, Indonesia
   }), []);
 
   // Use Frankfurt as a neutral hub to visualize connectivity
   const hub = { lat: 50.1109, lng: 8.6821 };
   const regionNames: Record<string, string> = {
+    // Americas
     "us-east": "Newark, NJ",
     "us-central": "Dallas, TX",
     "us-west": "Fremont, CA",
     "us-southeast": "Atlanta, GA",
+    "us-lax": "Los Angeles, CA",
+    "us-mia": "Miami, FL",
+    "us-sea": "Seattle, WA",
+    "us-ord": "Chicago, IL",
+    "us-iad": "Washington, DC",
     "ca-central": "Toronto, Canada",
+    "br-gru": "São Paulo, Brazil",
+    // Europe
     "eu-west": "London, UK",
+    "gb-lon": "London, UK",
     "eu-central": "Frankfurt, Germany",
+    "de-fra-2": "Frankfurt, Germany",
+    "fr-par": "Paris, France",
+    "it-mil": "Milan, Italy",
+    "nl-ams": "Amsterdam, Netherlands",
+    "se-sto": "Stockholm, Sweden",
+    "es-mad": "Madrid, Spain",
+    // Asia Pacific
     "ap-south": "Singapore",
+    "sg-sin-2": "Singapore",
     "ap-northeast": "Tokyo, Japan",
+    "jp-tyo-3": "Tokyo, Japan",
+    "jp-osa": "Osaka, Japan",
     "ap-southeast": "Sydney, Australia",
+    "au-mel": "Melbourne, Australia",
+    "ap-west": "Mumbai, India",
+    "in-bom-2": "Mumbai, India",
+    "in-maa": "Chennai, India",
+    "id-cgk": "Jakarta, Indonesia",
   };
 
   const dots = useMemo(() => {
@@ -144,7 +217,7 @@ export default function Home() {
           </h1>
 
           <p className="mt-6 max-w-2xl text-white/70 mx-auto md:mx-0 text-base md:text-lg">
-            Launch secure virtual servers across global regions and pay with BTC/ETH/XMR. Fast, reliable infrastructure at your fingertips.
+            Deploy anywhere, pay however. Launch secure virtual servers across global regions and pay with BTC/ETH/XMR.
           </p>
 
           {!user ? (
@@ -263,7 +336,7 @@ export default function Home() {
               viewport={{ once: true, amount: 0.5 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              From North America to Europe and Asia-Pacific, we deploy where you need it.
+              31 global locations across North America, Europe, Asia-Pacific, and South America. Deploy where your users are.
             </motion.p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -369,22 +442,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="relative z-10 border-t border-white/10/50 bg-black/40 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-6 md:px-10 py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-white/60">
-          <div className="flex items-center gap-2">
-            <span>Crypto Cloud</span>
-            <span className="opacity-50">•</span>
-            <span>Privacy-first infrastructure</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span>BTC</span>
-            <span className="opacity-40">/</span>
-            <span>ETH</span>
-            <span className="opacity-40">/</span>
-            <span>XMR</span>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }

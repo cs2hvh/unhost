@@ -9,7 +9,6 @@ import { motion } from 'framer-motion';
 import {
   FaWallet,
   FaServer,
-  FaCog,
   FaChartBar,
   FaSignOutAlt,
   FaUser,
@@ -19,6 +18,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaChevronDown,
+  FaTicketAlt,
 } from 'react-icons/fa';
 import { useAuth } from '../provider';
 import { isAdmin } from '@/lib/utils';
@@ -36,14 +36,11 @@ const sidebarItems = [
     icon: FaWallet,
     description: 'Payments and usage'
   },
-];
-
-const bottomNavItems = [
   {
-    name: 'Settings',
-    href: '/dashboard/settings',
-    icon: FaCog,
-    description: 'Account preferences'
+    name: 'Support',
+    href: '/dashboard/support',
+    icon: FaTicketAlt,
+    description: 'Get help from support'
   },
 ];
 
@@ -52,7 +49,7 @@ function DashboardContent({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const { balance, loading: walletLoading } = useWallet();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -60,19 +57,23 @@ function DashboardContent({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [serversOpen, setServersOpen] = useState(true);
-  const [settingsOpen, setSettingsOpen] = useState(true);
 
+  // Only redirect if auth is loaded and user is truly not authenticated
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       router.push('/auth');
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
+  // Redirect non-admins from admin pages
   useEffect(() => {
-    if (user && !isAdmin(user) && pathname?.startsWith('/dashboard/admin')) {
-      router.replace('/dashboard');
+    if (!authLoading && user && pathname?.startsWith('/dashboard/admin')) {
+      const userIsAdmin = isAdmin(user);
+      if (!userIsAdmin) {
+        router.replace('/dashboard');
+      }
     }
-  }, [user, isAdmin, pathname, router]);
+  }, [user, authLoading, pathname, router]);
 
 
   if (!user) {
@@ -117,7 +118,7 @@ function DashboardContent({
                   </div>
                 )}
                 {sidebarItems.filter(item => item.name !== 'Servers').map((item) => {
-                  const active = item.exact ? pathname === item.href : pathname?.startsWith(item.href);
+                  const active = pathname?.startsWith(item.href);
                   return (
                     <Link
                       key={item.name}
@@ -232,98 +233,6 @@ function DashboardContent({
                     Account
                   </div>
                 )}
-                {/* Settings section with nested items */}
-                <div>
-                  {collapsed ? (
-                    <Link
-                      href="/dashboard/settings/profile"
-                      className={`group flex justify-center px-3 py-3 rounded-xl transition-all duration-200 ${pathname?.startsWith('/dashboard/settings')
-                        ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                        : 'text-white/70 hover:text-white hover:bg-white/5'
-                        }`}
-                      title="Settings"
-                    >
-                      <div className={`p-1 rounded-lg ${pathname?.startsWith('/dashboard/settings') ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
-                        <FaCog className="h-5 w-5" />
-                      </div>
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setSettingsOpen((v) => !v)}
-                      className={`group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${pathname?.startsWith('/dashboard/settings')
-                        ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                        : 'text-white/70 hover:text-white hover:bg-white/5'
-                        }`}
-                    >
-                      <div className={`p-1 rounded-lg ${pathname?.startsWith('/dashboard/settings') ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
-                        <FaCog className="h-5 w-5" />
-                      </div>
-                      <span className="font-medium flex-1 text-left">Settings</span>
-                      <FaChevronDown className={`h-3.5 w-3.5 transition-transform ${settingsOpen ? '' : '-rotate-90'}`} />
-                    </button>
-                  )}
-                  {!collapsed && settingsOpen && (
-                    <div className="mt-1 ml-8 space-y-1">
-                      {(() => {
-                        const active = pathname === '/dashboard/settings/profile';
-                        return (
-                          <Link
-                            href={'/dashboard/settings/profile'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
-                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                              }`}
-                          >
-                            Profile
-                          </Link>
-                        );
-                      })()}
-                      {(() => {
-                        const active = pathname === '/dashboard/settings/notifications';
-                        return (
-                          <Link
-                            href={'/dashboard/settings/notifications'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
-                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                              }`}
-                          >
-                            Notifications
-                          </Link>
-                        );
-                      })()}
-                      {(() => {
-                        const active = pathname === '/dashboard/settings/preferences';
-                        return (
-                          <Link
-                            href={'/dashboard/settings/preferences'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
-                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                              }`}
-                          >
-                            Preferences
-                          </Link>
-                        );
-                      })()}
-                      {(() => {
-                        const active = pathname === '/dashboard/settings/security';
-                        return (
-                          <Link
-                            href={'/dashboard/settings/security'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
-                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                              }`}
-                          >
-                            Security
-                          </Link>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>

@@ -8,12 +8,16 @@ import { isAdmin } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { UsersSection } from '@/components/admin/UsersSection';
 import { AdminServersSection } from '@/components/admin/AdminServersSection';
+import { AdminTicketsSection } from '@/components/admin/AdminTicketsSection';
+import { PricingSection } from '@/components/admin/PricingSection';
 
-type TabKey = 'servers' | 'users';
+type TabKey = 'servers' | 'users' | 'tickets' | 'pricing';
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'servers', label: 'Servers' },
   { key: 'users', label: 'Users' },
+  { key: 'tickets', label: 'Support Tickets' },
+  { key: 'pricing', label: 'Pricing' },
 ];
 
 export default function AdminPage() {
@@ -26,7 +30,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabKey | null;
-    if (tabParam && (tabParam === 'servers' || tabParam === 'users')) {
+    if (tabParam && (tabParam === 'servers' || tabParam === 'users' || tabParam === 'tickets' || tabParam === 'pricing')) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -73,6 +77,14 @@ export default function AdminPage() {
             currentUserId={currentUserId}
             getAccessToken={getAccessToken}
           />
+        )}
+
+        {activeTab === 'tickets' && (
+          <AdminTicketsSection getAccessToken={getAccessToken} />
+        )}
+
+        {activeTab === 'pricing' && (
+          <PricingSection getAccessToken={getAccessToken} />
         )}
       </div>
     </AdminProtection>

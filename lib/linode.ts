@@ -107,7 +107,7 @@ export function getFlagUrl(countryCode: string, size: number = 64): string {
   return `https://flagsapi.com/${countryCode}/shiny/${size}.png`;
 }
 
-// Linode plan categories
+// Plan categories
 export const LINODE_PLAN_CATEGORIES = {
   'shared': 'Shared CPU',
   'dedicated': 'Dedicated CPU',
@@ -115,12 +115,12 @@ export const LINODE_PLAN_CATEGORIES = {
   'premium': 'Premium CPU',
 } as const;
 
-// Common Linode plan types (official pricing as of 2025)
+// Common plan types (official pricing as of 2025)
 export const LINODE_PLAN_TYPES = {
   // Shared CPU - Standard
   'g6-standard-1': {
     category: 'shared',
-    label: 'Linode 2GB',
+    label: 'Standard 2GB',
     vcpus: 1,
     memory: 2048,
     disk: 51200,
@@ -130,7 +130,7 @@ export const LINODE_PLAN_TYPES = {
   },
   'g6-standard-2': {
     category: 'shared',
-    label: 'Linode 4GB',
+    label: 'Standard 4GB',
     vcpus: 2,
     memory: 4096,
     disk: 81920,
@@ -140,7 +140,7 @@ export const LINODE_PLAN_TYPES = {
   },
   'g6-standard-4': {
     category: 'shared',
-    label: 'Linode 8GB',
+    label: 'Standard 8GB',
     vcpus: 4,
     memory: 8192,
     disk: 163840,
@@ -150,7 +150,7 @@ export const LINODE_PLAN_TYPES = {
   },
   'g6-standard-6': {
     category: 'shared',
-    label: 'Linode 16GB',
+    label: 'Standard 16GB',
     vcpus: 6,
     memory: 16384,
     disk: 327680,
@@ -160,7 +160,7 @@ export const LINODE_PLAN_TYPES = {
   },
   'g6-standard-8': {
     category: 'shared',
-    label: 'Linode 32GB',
+    label: 'Standard 32GB',
     vcpus: 8,
     memory: 32768,
     disk: 655360,
