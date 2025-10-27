@@ -17,6 +17,7 @@ export default function Navbar() {
 
 function TopNav() {
   const { user, signOut } = useAuth();
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -31,45 +32,88 @@ function TopNav() {
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
+  const handleNavClick = (sectionId: string) => {
+    setMobileOpen(false);
+    if (pathname !== '/') {
+      window.location.href = `/#${sectionId}`;
+    }
+  };
+
   const initial = (user?.email || "U").charAt(0).toUpperCase();
 
   return (
     <header className="sticky top-0 z-50 w-full">
       <div className="w-full border-b border-white/10 bg-black/30 backdrop-blur-md">
-        <div className="mx-auto max-w-7xl px-4 md:px-6 h-14 flex items-center justify-between">
+        <div className="mx-auto max-w-7xl px-4 md:px-6 h-16 flex items-center justify-between">
           {/* Brand */}
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="flex items-center justify-center w-7 h-7 rounded-md bg-white/10 border border-white/10">
-              <span className="text-white font-semibold">U</span>
+          <Link href="/" className="inline-flex items-center gap-2.5 group">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-white/20 to-white/5 border border-white/20 group-hover:border-white/40 transition-all">
+              <span className="text-white font-bold text-sm">U</span>
             </div>
-            <span className="text-white text-base md:text-lg font-semibold tracking-tight">Unhost</span>
+            <span className="text-white text-lg font-bold tracking-tight group-hover:text-white/90 transition-colors">
+              Un<span className="text-white/70">Host</span>
+            </span>
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-6">
-            <Link href="#features" className="text-white/80 hover:text-white transition-colors">Features</Link>
-            <Link href="#regions" className="text-white/80 hover:text-white transition-colors">Regions</Link>
-            <Link href="#pricing" className="text-white/80 hover:text-white transition-colors">Pricing</Link>
+          <nav className="hidden md:flex items-center gap-8">
+            <Link 
+              href="/#features" 
+              onClick={() => handleNavClick('features')}
+              className="text-white/70 hover:text-white transition-colors text-sm font-medium cursor-pointer"
+            >
+              Features
+            </Link>
+            <Link 
+              href="/#regions" 
+              onClick={() => handleNavClick('regions')}
+              className="text-white/70 hover:text-white transition-colors text-sm font-medium cursor-pointer"
+            >
+              Regions
+            </Link>
+            <Link 
+              href="/#pricing" 
+              onClick={() => handleNavClick('pricing')}
+              className="text-white/70 hover:text-white transition-colors text-sm font-medium cursor-pointer"
+            >
+              Pricing
+            </Link>
           </nav>
 
           {/* Right controls */}
           <div className="hidden md:flex items-center gap-3" ref={menuRef}>
             {!user ? (
-              <Link href="/auth" className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-colors">
-                Login
+              <Link href="/auth">
+                <Button className="bg-white/10 hover:bg-white/20 text-white border border-white/20 h-9 px-4">
+                  Sign In
+                </Button>
               </Link>
             ) : (
               <div className="relative">
-                <button onClick={() => setMenuOpen((v) => !v)} className="inline-flex items-center gap-2 text-white/90 hover:text-white">
-                  <div className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center">
-                    <span className="text-white text-sm">{initial}</span>
+                <button 
+                  onClick={() => setMenuOpen((v) => !v)} 
+                  className="inline-flex items-center gap-2.5 text-white/90 hover:text-white transition-colors cursor-pointer"
+                >
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-white/20 to-white/5 border border-white/20 flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">{initial}</span>
                   </div>
-                  <FaChevronDown className="h-3.5 w-3.5 opacity-70" />
+                  <FaChevronDown className="h-3 w-3 opacity-70" />
                 </button>
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md border border-white/10 bg-black/80 backdrop-blur-md shadow-lg py-1">
-                    <Link href="/dashboard/servers" className="block px-3 py-2 text-sm text-white/90 hover:bg-white/10">Dashboard</Link>
-                    <button onClick={signOut} className="block w-full text-left px-3 py-2 text-sm text-white/90 hover:bg-white/10">Sign out</button>
+                  <div className="absolute right-0 mt-2 w-48 rounded-lg border border-white/10 bg-black/90 backdrop-blur-md shadow-xl py-1.5">
+                    <Link 
+                      href="/dashboard/servers" 
+                      className="block px-4 py-2.5 text-sm text-white/90 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                    >
+                      Dashboard
+                    </Link>
+                    <div className="h-px bg-white/10 my-1" />
+                    <button 
+                      onClick={signOut} 
+                      className="block w-full text-left px-4 py-2.5 text-sm text-white/90 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                    >
+                      Sign out
+                    </button>
                   </div>
                 )}
               </div>
@@ -77,7 +121,11 @@ function TopNav() {
           </div>
 
           {/* Mobile menu toggle */}
-          <button className="md:hidden text-white/80 hover:text-white" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle Menu">
+          <button 
+            className="md:hidden text-white/80 hover:text-white transition-colors" 
+            onClick={() => setMobileOpen((v) => !v)} 
+            aria-label="Toggle Menu"
+          >
             {mobileOpen ? <FaTimes className="h-5 w-5" /> : <FaBars className="h-5 w-5" />}
           </button>
         </div>
@@ -85,18 +133,56 @@ function TopNav() {
 
       {/* Mobile panel */}
       {mobileOpen && (
-        <div className="md:hidden bg-black/80 backdrop-blur-md border-b border-white/10">
-          <div className="mx-auto max-w-7xl px-4 md:px-6 py-2 space-y-2">
-            <Link href="#features" className="block px-2 py-2 text-white/90 hover:bg-white/10 rounded">Features</Link>
-            <Link href="#regions" className="block px-2 py-2 text-white/90 hover:bg-white/10 rounded">Regions</Link>
-            <Link href="#pricing" className="block px-2 py-2 text-white/90 hover:bg-white/10 rounded">Pricing</Link>
+        <div className="md:hidden bg-black/90 backdrop-blur-md border-b border-white/10">
+          <div className="mx-auto max-w-7xl px-4 md:px-6 py-3 space-y-1">
+            <Link 
+              href="/#features" 
+              onClick={() => handleNavClick('features')}
+              className="block px-3 py-2.5 text-sm text-white/90 hover:bg-white/10 hover:text-white rounded-lg transition-colors cursor-pointer"
+            >
+              Features
+            </Link>
+            <Link 
+              href="/#regions" 
+              onClick={() => handleNavClick('regions')}
+              className="block px-3 py-2.5 text-sm text-white/90 hover:bg-white/10 hover:text-white rounded-lg transition-colors cursor-pointer"
+            >
+              Regions
+            </Link>
+            <Link 
+              href="/#pricing" 
+              onClick={() => handleNavClick('pricing')}
+              className="block px-3 py-2.5 text-sm text-white/90 hover:bg-white/10 hover:text-white rounded-lg transition-colors cursor-pointer"
+            >
+              Pricing
+            </Link>
             <div className="h-px bg-white/10 my-2" />
             {!user ? (
-              <Link href="/auth" className="block px-2 py-2 text-white/90 hover:bg-white/10 rounded">Login</Link>
+              <Link 
+                href="/auth"
+                onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2.5 text-sm text-white/90 hover:bg-white/10 hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                Sign In
+              </Link>
             ) : (
-              <div className="space-y-2">
-                <Link href="/dashboard/servers" className="block px-2 py-2 text-white/90 hover:bg-white/10 rounded">Dashboard</Link>
-                <button onClick={signOut} className="w-full text-left px-2 py-2 text-white/90 hover:bg-white/10 rounded">Sign out</button>
+              <div className="space-y-1">
+                <Link 
+                  href="/dashboard/servers" 
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-3 py-2.5 text-sm text-white/90 hover:bg-white/10 hover:text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  Dashboard
+                </Link>
+                <button 
+                  onClick={() => {
+                    signOut();
+                    setMobileOpen(false);
+                  }} 
+                  className="w-full text-left px-3 py-2.5 text-sm text-white/90 hover:bg-white/10 hover:text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  Sign out
+                </button>
               </div>
             )}
           </div>

@@ -20,6 +20,7 @@ import { LINODE_PLAN_TYPES, LINODE_PLAN_CATEGORIES, getPlansByCategory, getFlagU
 import { Loader, InlineLoader } from "@/components/ui/loader";
 import { useConfirmation } from "@/components/ui/confirmation-dialog";
 import toast from "react-hot-toast";
+import { getCSRFTokenManager } from "@/lib/security/csrf";
 
 type Option = { id: string; name?: string; host?: string; ip?: string; mac?: string | null; location?: string };
 
@@ -46,92 +47,11 @@ export default function ServersPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [hostname, setHostname] = useState("");
-  const [hostnameError, setHostnameError] = useState<string>("");
-
-  // Validate hostname
-  const validateHostname = (value: string): string => {
-    if (!value || value.length === 0) {
-      return "Hostname is required";
-    }
-    if (value.length < 3) {
-      return "Hostname must be at least 3 characters";
-    }
-    if (value.length > 63) {
-      return "Hostname must be 63 characters or less";
-    }
-    if (/\s/.test(value)) {
-      return "Hostname cannot contain spaces";
-    }
-    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i.test(value)) {
-      return "Hostname must contain only letters, numbers, and hyphens, and cannot start or end with a hyphen";
-    }
-    return "";
-  };
-
-  const handleHostnameChange = (value: string) => {
-    setHostname(value);
-    setHostnameError(validateHostname(value));
-  };
-
   const [location, setLocation] = useState<string | undefined>(undefined);
   const [os, setOs] = useState<string>("linode/ubuntu24.04");
   const [planType, setPlanType] = useState<string>("g6-standard-2"); // Default plan
   const [planCategory, setPlanCategory] = useState<string>("shared");
   const [sshKeys, setSshKeys] = useState<string[]>([""]);
-  const [sshKeyErrors, setSshKeyErrors] = useState<string[]>([""]);
-
-  // Validate SSH key format
-  const validateSshKey = (key: string): string => {
-    if (!key || key.trim().length === 0) {
-      return ""; // Empty is allowed, will be filtered out
-    }
-    
-    const trimmedKey = key.trim();
-    
-    // Check for valid SSH key patterns
-    const sshKeyPatterns = [
-      /^ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3}(\s+.*)?$/, // RSA
-      /^ssh-ed25519 AAAA[0-9A-Za-z+/]+[=]{0,3}(\s+.*)?$/, // ED25519
-      /^ssh-dss AAAA[0-9A-Za-z+/]+[=]{0,3}(\s+.*)?$/, // DSS
-      /^ecdsa-sha2-nistp(256|384|521) AAAA[0-9A-Za-z+/]+[=]{0,3}(\s+.*)?$/, // ECDSA
-    ];
-    
-    const isValid = sshKeyPatterns.some(pattern => pattern.test(trimmedKey));
-    
-    if (!isValid) {
-      return "Invalid SSH key format. Must start with ssh-rsa, ssh-ed25519, ssh-dss, or ecdsa-sha2-nistp";
-    }
-    
-    // Check minimum length (SSH keys are typically quite long)
-    if (trimmedKey.length < 80) {
-      return "SSH key appears too short. Please enter the complete key";
-    }
-    
-    return "";
-  };
-
-  const handleSshKeyChange = (index: number, value: string) => {
-    const newKeys = [...sshKeys];
-    newKeys[index] = value;
-    setSshKeys(newKeys);
-    
-    const newErrors = [...sshKeyErrors];
-    newErrors[index] = validateSshKey(value);
-    setSshKeyErrors(newErrors);
-  };
-
-  const addSshKey = () => {
-    setSshKeys([...sshKeys, ""]);
-    setSshKeyErrors([...sshKeyErrors, ""]);
-  };
-
-  const removeSshKey = (index: number) => {
-    if (sshKeys.length > 1) {
-      setSshKeys(sshKeys.filter((_, i) => i !== index));
-      setSshKeyErrors(sshKeyErrors.filter((_, i) => i !== index));
-    }
-  };
-
   const [step, setStep] = useState(0);
   
   // Pricing state
@@ -208,11 +128,11 @@ export default function ServersPage() {
   }, [activeTab, user?.id]);
 
   const stepsValid = [
-    hostname.trim().length >= 3 && !hostnameError,
+    hostname.trim().length > 0,
     !!location,
     !!os,
     !!planType,
-    sshKeys.some(key => key.trim().length > 0) && sshKeyErrors.every((error, i) => !error || sshKeys[i].trim().length === 0),
+    sshKeys.some(key => key.trim().length > 0),
   ];
 
   const onSubmit = async (e?: React.FormEvent) => {
@@ -221,6 +141,15 @@ export default function ServersPage() {
     setError(null);
     setResult(null);
     try {
+      // Get CSRF token
+      const csrfManager = getCSRFTokenManager();
+      let csrfToken = csrfManager.getToken();
+      
+      // If no token, fetch a new one
+      if (!csrfToken) {
+        csrfToken = await csrfManager.refreshToken();
+      }
+
       const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
@@ -233,9 +162,16 @@ export default function ServersPage() {
         ownerId: user?.id,
         ownerEmail: user?.email,
       };
+      
+      const headers = {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+      };
+
       const res = await fetch("/api/linode/instances/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+        headers,
         body: JSON.stringify(payload),
       });
       const json = await res.json();
@@ -294,7 +230,7 @@ export default function ServersPage() {
   const deleteServer = (server: any) => {
     confirm({
       title: 'Delete Server',
-      message: `Are you sure you want to delete "${server.name || 'this server'}"? This will permanently delete the server from both the database and Linode. All data will be lost. This action cannot be undone.`,
+      message: `Are you sure you want to delete "${server.name || 'this server'}"? This will permanently delete the server from both the database and infrastructure. All data will be lost. This action cannot be undone.`,
       confirmText: 'Delete Server',
       variant: 'danger',
       onConfirm: async () => {
@@ -322,9 +258,9 @@ export default function ServersPage() {
           if (data.linodeError) {
             toast.error(`${data.message}: ${data.linodeError}`);
           } else if (data.linodeDeleted && server.linode_id) {
-            toast.success('✅ Server deleted from both database and Linode');
+            toast.success('✅ Server deleted successfully');
           } else if (!server.linode_id) {
-            toast.success('⚠️ Server deleted from database (no Linode ID found)');
+            toast.success('⚠️ Server deleted from database');
           } else {
             toast.success(data.message || 'Server deleted successfully');
           }
@@ -415,7 +351,7 @@ export default function ServersPage() {
   }, [submitLoading, stepsValid, canAfford]);
 
   return (
-    <motion.div variants={fadeInUp} initial="initial" animate="animate" className="space-y-6">
+    <motion.div variants={fadeInUp} initial="initial" animate="animate" className="space-y-6 overflow-x-hidden">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Servers</h1>
@@ -466,16 +402,7 @@ export default function ServersPage() {
                 {step === 0 && (
                   <div className="space-y-3">
                     <Label className="text-white">Hostname</Label>
-                    <Input 
-                      value={hostname} 
-                      onChange={(e) => handleHostnameChange(e.target.value)} 
-                      placeholder="e.g. prod-ubuntu-01" 
-                      className={`bg-black text-white border-white/10 ${hostnameError ? 'border-red-500' : ''}`}
-                    />
-                    {hostnameError && (
-                      <p className="text-red-400 text-xs mt-1">{hostnameError}</p>
-                    )}
-                    <p className="text-white/50 text-xs">Must be 3-63 characters, no spaces, only letters, numbers, and hyphens</p>
+                    <Input value={hostname} onChange={(e) => setHostname(e.target.value)} placeholder="e.g. prod-ubuntu-01" className="bg-black text-white border-white/10" />
                   </div>
                 )}
 
@@ -592,7 +519,7 @@ export default function ServersPage() {
 
                     <div>
                       <Label className="text-white mb-3 block">Select Plan</Label>
-                      <div className="overflow-x-auto scrollbar-thin">
+                      <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="text-left text-white/60 border-b border-white/10">
@@ -662,7 +589,7 @@ export default function ServersPage() {
                                   size="sm"
                                   variant="ghost"
                                   className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7"
-                                  onClick={() => removeSshKey(idx)}
+                                  onClick={() => setSshKeys(sshKeys.filter((_, i) => i !== idx))}
                                 >
                                   Remove
                                 </Button>
@@ -670,38 +597,34 @@ export default function ServersPage() {
                             </div>
                             <textarea
                               value={key}
-                              onChange={(e) => handleSshKeyChange(idx, e.target.value)}
+                              onChange={(e) => {
+                                const newKeys = [...sshKeys];
+                                newKeys[idx] = e.target.value;
+                                setSshKeys(newKeys);
+                              }}
                               placeholder="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... user@hostname&#10;or&#10;ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@hostname"
-                              className={`w-full bg-white/5 text-white border-2 ${sshKeyErrors[idx] && key.trim().length > 0 ? 'border-red-500' : 'border-white/20'} focus:border-[#60A5FA] focus:ring-2 focus:ring-[#60A5FA]/20 rounded-lg p-3 text-xs font-mono resize-none transition-all placeholder:text-white/30`}
+                              className="w-full bg-white/5 text-white border-2 border-white/20 focus:border-[#60A5FA] focus:ring-2 focus:ring-[#60A5FA]/20 rounded-lg p-3 text-xs font-mono resize-none transition-all placeholder:text-white/30"
                               rows={4}
                             />
-                            {sshKeyErrors[idx] && key.trim().length > 0 && (
-                              <p className="text-red-400 text-xs mt-1 flex items-start gap-1">
-                                <FaExclamationTriangle className="mt-0.5 flex-shrink-0" />
-                                <span>{sshKeyErrors[idx]}</span>
-                              </p>
-                            )}
                           </div>
                         ))}
                       </div>
-                      <div className="mt-4 space-y-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="bg-white/5 hover:bg-white/10 text-white border-white/20 hover:border-white/30"
-                          onClick={addSshKey}
-                        >
-                          + Add Another Key
-                        </Button>
-                        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                          <div className="flex gap-2">
-                            <FaInfoCircle className="text-blue-400 mt-0.5 flex-shrink-0" />
-                            <div className="text-xs text-white/80">
-                              <p className="font-medium text-white mb-1">How to generate SSH keys:</p>
-                              <code className="block bg-black/50 px-2 py-1 rounded mt-1 text-white/90">ssh-keygen -t ed25519 -C "your_email@example.com"</code>
-                              <p className="mt-2 text-white/70">Then copy the contents of <code className="bg-black/50 px-1 rounded">~/.ssh/id_ed25519.pub</code></p>
-                            </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-4 bg-white/5 hover:bg-white/10 text-white border-white/20 hover:border-white/30"
+                        onClick={() => setSshKeys([...sshKeys, ""])}
+                      >
+                        + Add Another Key
+                      </Button>
+                      <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                        <div className="flex gap-2">
+                          <FaInfoCircle className="text-blue-400 mt-0.5 flex-shrink-0" />
+                          <div className="text-xs text-white/80">
+                            <p className="font-medium text-white mb-1">How to generate SSH keys:</p>
+                            <code className="block bg-black/50 px-2 py-1 rounded mt-1 text-white/90">ssh-keygen -t ed25519 -C "your_email@example.com"</code>
+                            <p className="mt-2 text-white/70">Then copy the contents of <code className="bg-black/50 px-1 rounded">~/.ssh/id_ed25519.pub</code></p>
                           </div>
                         </div>
                       </div>
@@ -721,7 +644,7 @@ export default function ServersPage() {
                           {!canAfford 
                             ? `Insufficient balance. Need ${formatCurrency(pricing.hourly - balance)}/hr more` 
                             : !stepsValid[0] 
-                            ? hostnameError || "Please enter a valid hostname" 
+                            ? "Please enter a hostname" 
                             : !stepsValid[1] 
                             ? "Please select a location" 
                             : !stepsValid[2] 
@@ -729,7 +652,7 @@ export default function ServersPage() {
                             : !stepsValid[3] 
                             ? "Please select a plan" 
                             : !stepsValid[4] 
-                            ? "Please enter at least one valid SSH key" 
+                            ? "Please enter at least one SSH key" 
                             : "Please complete all required fields"}
                         </p>
                       )}
@@ -805,7 +728,7 @@ export default function ServersPage() {
                       {!canAfford 
                         ? `Insufficient balance. Need ${formatCurrency(pricing.hourly - balance)}/hr more` 
                         : !stepsValid[0] 
-                        ? hostnameError || "Please enter a valid hostname" 
+                        ? "Please enter a hostname" 
                         : !stepsValid[1] 
                         ? "Please select a location" 
                         : !stepsValid[2] 
@@ -813,7 +736,7 @@ export default function ServersPage() {
                         : !stepsValid[3] 
                         ? "Please select a plan" 
                         : !stepsValid[4] 
-                        ? "Please enter at least one valid SSH key" 
+                        ? "Please enter at least one SSH key" 
                         : "Please complete all required fields"}
                     </p>
                   </div>
@@ -857,121 +780,197 @@ export default function ServersPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            {myLoading ? (<div className="flex justify-center py-8"><InlineLoader text="Loading servers" /></div>) : myServers.length === 0 ? (<div className="text-white/60">No servers yet.</div>) : (
-              <div className="overflow-x-auto scrollbar-thin">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-white/60 border-b border-white/10">
-                      <th className="py-2 pr-4">Name</th>
-                      <th className="py-2 pr-4">Region</th>
-                      <th className="py-2 pr-4">IP</th>
-                      <th className="py-2 pr-4">Configuration</th>
-                      <th className="py-2 pr-4">OS</th>
-                      <th className="py-2 pr-4">Status</th>
-                      <th className="py-2 pr-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {myServers.map((s) => {
-                      const regionObj = options?.locations?.find((l) => l.id === s.location);
-                      const regionFlagUrl = (regionObj as any)?.flagUrl;
-                      const regionCountryCode = (regionObj as any)?.countryCode || 'XX';
-                      const regionName = (regionObj as any)?.country || regionObj?.name || s.location || 'N/A';
-                      const specs = `${s.cpu_cores || '?' } vCPU • ${s.memory_mb || 0} MB${s.disk_gb ? ` • ${s.disk_gb} GB` : ''}`;
-                      const sshCmd = `ssh root@${s.ip}`;
-                      const stopped = String(s.status || '').toLowerCase() === 'stopped';
-                      const specStr = `${s.cpu_cores || '?' } vCPU` + ` • ${s.memory_mb || 0} MB` + (s.disk_gb ? ` • ${s.disk_gb} GB` : '');
+          <CardContent className="p-0">
+            {myLoading ? (
+              <div className="flex justify-center py-8"><InlineLoader text="Loading servers" /></div>
+            ) : myServers.length === 0 ? (
+              <div className="text-white/60 p-6">No servers yet.</div>
+            ) : (
+              <div className="w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider bg-white/5">
+                          Name
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider bg-white/5">
+                          Region
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider bg-white/5">
+                          IP Address
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider bg-white/5">
+                          Configuration
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider bg-white/5">
+                          OS
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-white/70 uppercase tracking-wider bg-white/5">
+                          Status
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-medium text-white/70 uppercase tracking-wider bg-white/5">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {myServers.map((s) => {
+                        const regionObj = options?.locations?.find((l) => l.id === s.location);
+                        const regionFlagUrl = (regionObj as any)?.flagUrl;
+                        const regionName = (regionObj as any)?.country || regionObj?.name || s.location || 'N/A';
+                        const sshCmd = `ssh root@${s.ip}`;
+                        const stopped = String(s.status || '').toLowerCase() === 'stopped';
+                        const specStr = `${s.cpu_cores || '?'} vCPU • ${s.memory_mb || 0} MB` + (s.disk_gb ? ` • ${s.disk_gb} GB` : '');
 
-                      // Format OS name
-                      let osDisplay = s.os || 'N/A';
-                      if (osDisplay.startsWith('linode/')) {
-                        // Try to find in grouped images
-                        const groupedImages = (options as any)?.groupedImages || {};
-                        let found = false;
-                        for (const [category, images] of Object.entries(groupedImages)) {
-                          const selectedImg = (images as any[]).find((img: any) => img.id === s.os);
-                          if (selectedImg) {
-                            osDisplay = `${category} ${selectedImg.name}`;
-                            found = true;
-                            break;
+                        // Format OS name
+                        let osDisplay = s.os || 'N/A';
+                        if (osDisplay.startsWith('linode/')) {
+                          const groupedImages = (options as any)?.groupedImages || {};
+                          let found = false;
+                          for (const [category, images] of Object.entries(groupedImages)) {
+                            const selectedImg = (images as any[]).find((img: any) => img.id === s.os);
+                            if (selectedImg) {
+                              osDisplay = `${category} ${selectedImg.name}`;
+                              found = true;
+                              break;
+                            }
+                          }
+                          if (!found) {
+                            osDisplay = osDisplay.replace('linode/', '').replace('-', ' ');
+                            osDisplay = osDisplay.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
                           }
                         }
-                        // If not found in grouped images, just remove "linode/" prefix
-                        if (!found) {
-                          osDisplay = osDisplay.replace('linode/', '').replace('-', ' ');
-                          // Capitalize first letter of each word
-                          osDisplay = osDisplay.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-                        }
-                      }
 
-                      return (
-                          <tr key={s.id} className="border-b border-white/5">
-                            <td className="py-2 pr-4 text-white">{s.name}</td>
-                            <td className="py-2 pr-4 text-white/80">
-                              <span className="inline-flex items-center gap-2">
-                                {regionFlagUrl && <Image src={regionFlagUrl} alt={regionName} width={20} height={20} className="rounded" />}
-                                <span>{regionName}</span>
-                              </span>
+                        return (
+                          <tr key={s.id} className="bg-black/20 hover:bg-white/5 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-white">{s.name}</div>
                             </td>
-                            <td className="py-2 pr-4 text-white/80">
-                              <div className="inline-flex items-center gap-2">
-                                <span>{s.ip}</span>
-                                <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-white/70 hover:text-white" title="Copy IP" onClick={() => copyIp(s.ip)}><FaCopy className="h-3.5 w-3.5" /></Button>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                {regionFlagUrl && (
+                                  <Image src={regionFlagUrl} alt={regionName} width={20} height={20} className="rounded" />
+                                )}
+                                <span className="text-sm text-white/80">{regionName}</span>
                               </div>
                             </td>
-                            <td className="py-2 pr-4 text-white/80">{specStr}</td>
-                            <td className="py-2 pr-4 text-white/80">{osDisplay}</td>
-                            <td className="py-2 pr-4">
-                              <span className={`inline-flex items-center gap-1 ${
-                                s.status === 'running' ? 'text-green-400' :
-                                s.status === 'provisioning' || s.status === 'rebuilding' ? 'text-yellow-400' :
-                                s.status === 'offline' || s.status === 'stopped' ? 'text-red-400' :
-                                'text-white/80'
-                              }`}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-mono text-white/80">{s.ip}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => copyIp(s.ip)}
+                                  className="p-1.5 rounded hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                                  title="Copy IP"
+                                >
+                                  <FaCopy className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-white/80">{specStr}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-white/80">{osDisplay}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+                                  s.status === 'running'
+                                    ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                                    : s.status === 'provisioning' || s.status === 'rebuilding'
+                                    ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                                    : s.status === 'offline' || s.status === 'stopped'
+                                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                                    : 'bg-white/10 text-white/70 border border-white/20'
+                                }`}
+                              >
                                 {s.status || 'N/A'}
-                                {(s.status === 'provisioning' || s.status === 'rebuilding') && <FaSync className="animate-spin text-xs ml-1" />}
+                                {(s.status === 'provisioning' || s.status === 'rebuilding') && (
+                                  <FaSync className="animate-spin text-xs" />
+                                )}
                               </span>
                             </td>
-                            <td className="py-2 pr-4 space-x-2 whitespace-nowrap">
-                              <Button type="button" size="sm" variant="ghost" className="text-white/80 hover:text-white" title="Copy SSH command" onClick={() => {
-                                try {
-                                  navigator.clipboard.writeText(sshCmd);
-                                  toast.success('SSH command copied to clipboard');
-                                } catch {
-                                  toast.error('Failed to copy SSH command');
-                                }
-                              }}><FaCopy className="h-3.5 w-3.5 mr-2" /> SSH</Button>
-                              {stopped ? (
-                                <Button type="button" size="sm" className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer" onClick={() => powerAction(s.id, 'start')} disabled={actingId === s.id} title="Start VM"><FaPlay className="h-3.5 w-3.5 mr-2" /> Start</Button>
-                              ) : (
-                                <>
-                                  <Button type="button" size="sm" className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 border border-yellow-500/40 cursor-pointer" onClick={() => confirmAndPower(s, 'reboot')} disabled={actingId === s.id} title="Reboot VM">
-                                    <FaRedo className="h-3.5 w-3.5 mr-2" />
-                                    Reboot
-                                  </Button>
-                                  <Button type="button" size="sm" className="bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/40 cursor-pointer" onClick={() => confirmAndPower(s, 'stop')} disabled={actingId === s.id} title="Power Off VM">
-                                    <FaPowerOff className="h-3.5 w-3.5 mr-2" />
-                                    Power Off
-                                  </Button>
-                                </>
-                              )}
-                              <Button type="button" size="sm" className="bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-600/40 cursor-pointer" onClick={() => deleteServer(s)} disabled={actingId === s.id} title="Delete Server">
-                                <FaTrash className="h-3.5 w-3.5 mr-2" />
-                                Delete
-                              </Button>
-                              <Link href={`/dashboard/servers/${encodeURIComponent(s.id)}`} className="inline-block" title="Actions">
-                                <Button type="button" size="sm" className="bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 cursor-pointer">
-                                  <FaExternalLinkAlt className="h-3.5 w-3.5 mr-2" /> Actions
-                                </Button>
-                              </Link>
+                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    try {
+                                      navigator.clipboard.writeText(sshCmd);
+                                      toast.success('SSH command copied');
+                                    } catch {
+                                      toast.error('Failed to copy');
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded transition-colors"
+                                  title="Copy SSH command"
+                                >
+                                  <FaCopy className="h-3 w-3" />
+                                  SSH
+                                </button>
+                                {stopped ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => powerAction(s.id, 'start')}
+                                    disabled={actingId === s.id}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded transition-colors disabled:opacity-50"
+                                    title="Start VM"
+                                  >
+                                    <FaPlay className="h-3 w-3" />
+                                    Start
+                                  </button>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => confirmAndPower(s, 'reboot')}
+                                      disabled={actingId === s.id}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/40 rounded transition-colors disabled:opacity-50"
+                                      title="Reboot VM"
+                                    >
+                                      <FaRedo className="h-3 w-3" />
+                                      Reboot
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => confirmAndPower(s, 'stop')}
+                                      disabled={actingId === s.id}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 rounded transition-colors disabled:opacity-50"
+                                      title="Power Off VM"
+                                    >
+                                      <FaPowerOff className="h-3 w-3" />
+                                      Stop
+                                    </button>
+                                  </>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => deleteServer(s)}
+                                  disabled={actingId === s.id}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-600/40 rounded transition-colors disabled:opacity-50"
+                                  title="Delete Server"
+                                >
+                                  <FaTrash className="h-3 w-3" />
+                                </button>
+                                <Link href={`/dashboard/servers/${encodeURIComponent(s.id)}`} title="More Actions">
+                                  <button
+                                    type="button"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 rounded transition-colors"
+                                  >
+                                    <FaExternalLinkAlt className="h-3 w-3" />
+                                    More
+                                  </button>
+                                </Link>
+                              </div>
                             </td>
                           </tr>
-                          
-                      );
-                    })}
-                  </tbody>
-                </table>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </CardContent>

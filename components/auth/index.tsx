@@ -48,7 +48,6 @@ export function AuthForm({ token }: { token: string }) {
                 toast.error(error.error)
             }
         } catch {
-            // console.error('Failed to Authenticate')
             toast.error("Failed to Authenticate. Please try again later.")
         } finally {
             setIsLoading(false)
@@ -56,24 +55,38 @@ export function AuthForm({ token }: { token: string }) {
     }
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)}>
-            <div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                    Authentication Token
+                </label>
                 <AuthInput
                     value={tokenValue}
                     onChange={(newToken) => setValue("token", newToken)}
                 />
                 {errors.token && (
-                    <p className="text-red-500 text-sm mt-1">{errors.token.message}</p>
+                    <p className="text-red-500 text-sm mt-2">
+                        {errors.token.message}
+                    </p>
                 )}
             </div>
 
             <Button
                 type="submit"
-                className="w-full mt-4 cursor-pointer"
+                className="w-full h-11 font-medium cursor-pointer"
                 disabled={isLoading}
             >
-                {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : <LogIn className="h-4 w-4" />}
-                Authenticate
+                {isLoading ? (
+                    <>
+                        <Loader2 className="animate-spin w-4 h-4 mr-2" />
+                        Authenticating...
+                    </>
+                ) : (
+                    <>
+                        <LogIn className="w-4 h-4 mr-2" />
+                        Sign In
+                    </>
+                )}
             </Button>
         </form>
     )

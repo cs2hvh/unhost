@@ -101,7 +101,7 @@ export function AdminServersSection({ getAccessToken }: AdminServersSectionProps
   const handleDelete = (server: Server) => {
     confirm({
       title: 'Delete Server',
-      message: `Are you sure you want to delete server "${server.name}"? This will also delete the Linode instance if it exists. This action cannot be undone.`,
+      message: `Are you sure you want to delete server "${server.name}"? This will also delete the VPS instance if it exists. This action cannot be undone.`,
       confirmText: 'Delete',
       variant: 'danger',
       onConfirm: async () => {
@@ -128,14 +128,14 @@ export function AdminServersSection({ getAccessToken }: AdminServersSectionProps
 
           // Show detailed success message
           console.log('Delete response:', data);
-          console.log('Server had linode_id?', server.linode_id);
+          console.log('Server had instance_id?', server.linode_id);
 
           if (data.linodeError) {
             toast.error(`${data.message}: ${data.linodeError}`);
           } else if (data.linodeDeleted && server.linode_id) {
-            toast.success('✅ Server deleted from both database and Linode');
+            toast.success('✅ Server deleted from both database and infrastructure');
           } else if (!server.linode_id) {
-            toast.warning('⚠️ Server deleted from database (no Linode ID found)');
+            toast.warning('⚠️ Server deleted from database (no instance ID found)');
           } else {
             toast.warning(data.message || `Server "${server.name}" deleted`);
           }

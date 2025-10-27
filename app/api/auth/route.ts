@@ -1,13 +1,39 @@
 import { authSchema } from '@/components/auth/schema'
 import { createClient } from '@/lib/supabase/server'
 import { signInOrCreateUser } from '@/lib/supabase/user'
+import { rateLimit } from '@/lib/rateLimit'
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
  * POST /api/auth
+ * Rate limited: 5 requests per minute per IP
  */
 export async function POST(request: NextRequest) {
     try {
+        // Apply rate limiting
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
+                   request.headers.get('x-real-ip') || 
+                   'unknown';
+        
+        const rateLimitResult = rateLimit(`auth:${ip}`, 5, 60 * 1000); // 5 requests per minute
+        
+        if (!rateLimitResult.allowed) {
+            return NextResponse.json(
+                { 
+                    error: 'Too many authentication attempts. Please try again later.',
+                    retryAfter: (rateLimitResult as { allowed: false; retryAfter: number }).retryAfter
+                },
+                { 
+                    status: 429,
+                    headers: {
+                        'Retry-After': String((rateLimitResult as { allowed: false; retryAfter: number }).retryAfter),
+                        'X-RateLimit-Limit': '5',
+                        'X-RateLimit-Remaining': '0',
+                    }
+                }
+            );
+        }
+
         const body = await request.json()
         const validatedData = authSchema.parse(body)
         const supabase = await createClient()
@@ -34,7 +60,13 @@ export async function POST(request: NextRequest) {
                     username: data.user.user_metadata?.username,
                 },
             },
-            { status: 200 }
+            { 
+                status: 200,
+                headers: {
+                    'X-RateLimit-Limit': '5',
+                    'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+                }
+            }
         )
     } catch (error) {
         console.error('Signin API error:', error)

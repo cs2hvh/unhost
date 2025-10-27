@@ -1,0 +1,32 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer circle with gradient -->
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="url(#logoGradient)" opacity="0.1"/>
+  
+  <!-- Main server icon -->
+  <rect x="60" y="50" width="80" height="100" rx="8" fill="url(#logoGradient)" opacity="0.8"/>
+  
+  <!-- Server details -->
+  <rect x="70" y="65" width="60" height="8" rx="4" fill="white" opacity="0.9"/>
+  <rect x="70" y="80" width="60" height="8" rx="4" fill="white" opacity="0.7"/>
+  <rect x="70" y="95" width="60" height="8" rx="4" fill="white" opacity="0.5"/>
+  
+  <!-- Indicator lights -->
+  <circle cx="75" cy="125" r="4" fill="#10b981"/>
+  <circle cx="90" cy="125" r="4" fill="#10b981"/>
+  <circle cx="105" cy="125" r="4" fill="#f59e0b"/>
+  <circle cx="120" cy="125" r="4" fill="#10b981"/>
+  
+  <!-- Cloud connection -->
+  <path d="M 100 40 Q 85 30 70 35 Q 65 40 70 45 Q 75 50 85 48 Q 90 52 100 50 Q 110 52 115 48 Q 125 50 130 45 Q 135 40 130 35 Q 115 30 100 40 Z" fill="url(#logoGradient)" opacity="0.6"/>
+  
+  <!-- Connection lines -->
+  <line x1="100" y1="50" x2="100" y2="50" stroke="url(#logoGradient)" stroke-width="2" opacity="0.4"/>
+</svg>

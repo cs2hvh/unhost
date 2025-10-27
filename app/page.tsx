@@ -1,16 +1,30 @@
 ﻿﻿"use client";
 
 import { motion } from "framer-motion";
-import LightRays from "@/components/LightRays";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import { FaBitcoin, FaEthereum, FaShieldAlt, FaBolt, FaServer, FaMicrochip, FaHdd, FaNetworkWired, FaLock, FaGlobe, FaClock, FaCloudUploadAlt, FaCode, FaHeadset } from "react-icons/fa";
 import { useMemo, useState } from "react";
-import { WorldMap } from "@/components/ui/world-map";
 import { generateToken } from "@/lib/utils";
 import { toast } from "sonner";
 import { Loader2, LogIn, RefreshCw } from "lucide-react";
 import { useAuth } from "@/app/provider";
+
+// Lazy load heavy WebGL components
+const LightRays = dynamic(() => import("@/components/LightRays"), {
+  ssr: false,
+  loading: () => <div className="absolute inset-0 bg-gradient-to-b from-black via-blue-950/20 to-black" />
+});
+
+const WorldMap = dynamic(() => import("@/components/ui/world-map").then(mod => ({ default: mod.WorldMap })), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[600px] flex items-center justify-center">
+      <div className="text-white/50 text-sm">Loading map...</div>
+    </div>
+  )
+});
 
 export default function Home() {
   const { user } = useAuth();

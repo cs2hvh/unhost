@@ -1,5 +1,6 @@
 'use client';
 
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useWallet } from '@/hooks/useWallet';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
@@ -123,7 +124,7 @@ function DashboardContent({
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${active
+                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 cursor-pointer ${active
                         ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
                         : 'text-white/70 hover:text-white hover:bg-white/5'
                         }`}
@@ -170,7 +171,7 @@ function DashboardContent({
                         return (
                           <Link
                             href={'/dashboard/servers?view=deploy'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all cursor-pointer ${active
                               ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
                               : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
                               }`}
@@ -184,7 +185,7 @@ function DashboardContent({
                         return (
                           <Link
                             href={'/dashboard/servers?view=list'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${active
+                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all cursor-pointer ${active
                               ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
                               : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
                               }`}
@@ -204,7 +205,7 @@ function DashboardContent({
                     <Link
                       key="admin"
                       href="/dashboard/admin"
-                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${active
+                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 cursor-pointer ${active
                         ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
                         : 'text-white/70 hover:text-white hover:bg-white/5'
                         }`}
@@ -246,13 +247,13 @@ function DashboardContent({
                     <FaUser className="h-4 w-4 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-normal text-sm truncate">{user.email}</p>
+                    <p className="text-white font-normal text-sm truncate">{user.email?.split('@')[0] || user.email}</p>
                     <p className="text-white/60 text-xs">Signed in</p>
                   </div>
                 </div>
                 <button
                   onClick={signOut}
-                  className="flex items-center gap-2 text-white/80 hover:text-white transition-colors w-full px-3 py-2 border border-white/10 hover:bg-white/10 rounded-xl"
+                  className="flex items-center gap-2 text-white/80 hover:text-white transition-colors w-full px-3 py-2 border border-white/10 hover:bg-white/10 rounded-xl cursor-pointer"
                 >
                   <FaSignOutAlt className="h-4 w-4" />
                   <span className="text-sm">Sign Out</span>
@@ -260,12 +261,12 @@ function DashboardContent({
               </>
             ) : (
               <div className="flex flex-col items-center gap-2">
-                <div className="w-8 h-8 bg-white/10 border border-white/10 rounded-md flex items-center justify-center" title={user.email || ''}>
+                <div className="w-8 h-8 bg-white/10 border border-white/10 rounded-md flex items-center justify-center" title={user.email?.split('@')[0] || user.email || ''}>
                   <FaUser className="h-4 w-4 text-white" />
                 </div>
                 <button
                   onClick={signOut}
-                  className="w-8 h-8 text-white/80 hover:text-white transition-colors border border-white/10 hover:bg-white/10 rounded-md flex items-center justify-center"
+                  className="w-8 h-8 text-white/80 hover:text-white transition-colors border border-white/10 hover:bg-white/10 rounded-md flex items-center justify-center cursor-pointer"
                   title="Sign out"
                 >
                   <FaSignOutAlt className="h-4 w-4" />
@@ -324,12 +325,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#60A5FA]/30 border-t-[#60A5FA] rounded-full animate-spin"></div>
-      </div>
-    }>
-      <DashboardContent>{children}</DashboardContent>
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-[#60A5FA]/30 border-t-[#60A5FA] rounded-full animate-spin"></div>
+        </div>
+      }>
+        <DashboardContent>{children}</DashboardContent>
+      </Suspense>
+    </ErrorBoundary>
   );
 }

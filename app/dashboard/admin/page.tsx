@@ -1,15 +1,53 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import AdminProtection from '@/components/AdminProtection';
 import { useAuth } from '@/app/provider';
 import { isAdmin } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
-import { UsersSection } from '@/components/admin/UsersSection';
-import { AdminServersSection } from '@/components/admin/AdminServersSection';
-import { AdminTicketsSection } from '@/components/admin/AdminTicketsSection';
-import { PricingSection } from '@/components/admin/PricingSection';
+import { Loader } from '@/components/ui/loader';
+
+// Lazy load admin sections to reduce initial bundle size
+const UsersSection = dynamic(() => import('@/components/admin/UsersSection').then(mod => ({ default: mod.UsersSection })), {
+  loading: () => (
+    <div className="flex items-center justify-center py-12">
+      <Loader size="lg" color="white" />
+    </div>
+  ),
+  ssr: false
+});
+
+const AdminServersSection = dynamic(() => import('@/components/admin/AdminServersSection').then(mod => ({ default: mod.AdminServersSection })), {
+  loading: () => (
+    <div className="flex items-center justify-center py-12">
+      <Loader size="lg" color="white" />
+    </div>
+  ),
+  ssr: false
+});
+
+const AdminTicketsSection = dynamic<{ getAccessToken: () => Promise<string | null> }>(
+  () => import('@/components/admin/AdminTicketsSection').then(mod => ({ default: mod.AdminTicketsSection })), 
+  {
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader size="lg" color="white" />
+      </div>
+    ),
+    ssr: false
+  }
+);
+
+const PricingSection = dynamic(() => import('@/components/admin/PricingSection').then(mod => ({ default: mod.PricingSection })), {
+  loading: () => (
+    <div className="flex items-center justify-center py-12">
+      <Loader size="lg" color="white" />
+    </div>
+  ),
+  ssr: false
+});
 
 type TabKey = 'servers' | 'users' | 'tickets' | 'pricing';
 

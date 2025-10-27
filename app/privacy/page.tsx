@@ -7,10 +7,9 @@ import { FaShieldAlt, FaLock, FaDatabase, FaCookie, FaEnvelope } from "react-ico
 
 export default function PrivacyPage() {
   return (
-    <>
-      <div className="bg-black text-white">
-        {/* Hero Section */}
-        <section className="relative py-16 border-b border-white/10">
+    <div className="min-h-screen bg-black text-white">
+      {/* Hero Section */}
+      <section className="relative py-16 border-b border-white/10">
         <div className="max-w-4xl mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -173,9 +172,8 @@ export default function PrivacyPage() {
           </motion.div>
         </div>
       </section>
-      </div>
 
       <Footer />
-    </>
+    </div>
   );
 }

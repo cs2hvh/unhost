@@ -5,6 +5,7 @@ import Navbar from "@/components/navbar";
 import { Toaster } from "sonner";
 import { getUserFromHeaders } from "@/lib/supabase/user";
 import { AuthProvider } from "./provider";
+import { ReactQueryProvider } from "@/providers/ReactQueryProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,10 +32,12 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <Navbar />
-          {children}
-        </AuthProvider>
+        <ReactQueryProvider>
+          <AuthProvider>
+            <Navbar />
+            {children}
+          </AuthProvider>
+        </ReactQueryProvider>
         <Toaster />
       </body>
     </html>
