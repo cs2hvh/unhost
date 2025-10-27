@@ -46,11 +46,92 @@ export default function ServersPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [hostname, setHostname] = useState("");
+  const [hostnameError, setHostnameError] = useState<string>("");
+
+  // Validate hostname
+  const validateHostname = (value: string): string => {
+    if (!value || value.length === 0) {
+      return "Hostname is required";
+    }
+    if (value.length < 3) {
+      return "Hostname must be at least 3 characters";
+    }
+    if (value.length > 63) {
+      return "Hostname must be 63 characters or less";
+    }
+    if (/\s/.test(value)) {
+      return "Hostname cannot contain spaces";
+    }
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/i.test(value)) {
+      return "Hostname must contain only letters, numbers, and hyphens, and cannot start or end with a hyphen";
+    }
+    return "";
+  };
+
+  const handleHostnameChange = (value: string) => {
+    setHostname(value);
+    setHostnameError(validateHostname(value));
+  };
+
   const [location, setLocation] = useState<string | undefined>(undefined);
   const [os, setOs] = useState<string>("linode/ubuntu24.04");
   const [planType, setPlanType] = useState<string>("g6-standard-2"); // Default plan
   const [planCategory, setPlanCategory] = useState<string>("shared");
   const [sshKeys, setSshKeys] = useState<string[]>([""]);
+  const [sshKeyErrors, setSshKeyErrors] = useState<string[]>([""]);
+
+  // Validate SSH key format
+  const validateSshKey = (key: string): string => {
+    if (!key || key.trim().length === 0) {
+      return ""; // Empty is allowed, will be filtered out
+    }
+    
+    const trimmedKey = key.trim();
+    
+    // Check for valid SSH key patterns
+    const sshKeyPatterns = [
+      /^ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3}(\s+.*)?$/, // RSA
+      /^ssh-ed25519 AAAA[0-9A-Za-z+/]+[=]{0,3}(\s+.*)?$/, // ED25519
+      /^ssh-dss AAAA[0-9A-Za-z+/]+[=]{0,3}(\s+.*)?$/, // DSS
+      /^ecdsa-sha2-nistp(256|384|521) AAAA[0-9A-Za-z+/]+[=]{0,3}(\s+.*)?$/, // ECDSA
+    ];
+    
+    const isValid = sshKeyPatterns.some(pattern => pattern.test(trimmedKey));
+    
+    if (!isValid) {
+      return "Invalid SSH key format. Must start with ssh-rsa, ssh-ed25519, ssh-dss, or ecdsa-sha2-nistp";
+    }
+    
+    // Check minimum length (SSH keys are typically quite long)
+    if (trimmedKey.length < 80) {
+      return "SSH key appears too short. Please enter the complete key";
+    }
+    
+    return "";
+  };
+
+  const handleSshKeyChange = (index: number, value: string) => {
+    const newKeys = [...sshKeys];
+    newKeys[index] = value;
+    setSshKeys(newKeys);
+    
+    const newErrors = [...sshKeyErrors];
+    newErrors[index] = validateSshKey(value);
+    setSshKeyErrors(newErrors);
+  };
+
+  const addSshKey = () => {
+    setSshKeys([...sshKeys, ""]);
+    setSshKeyErrors([...sshKeyErrors, ""]);
+  };
+
+  const removeSshKey = (index: number) => {
+    if (sshKeys.length > 1) {
+      setSshKeys(sshKeys.filter((_, i) => i !== index));
+      setSshKeyErrors(sshKeyErrors.filter((_, i) => i !== index));
+    }
+  };
+
   const [step, setStep] = useState(0);
   
   // Pricing state
@@ -127,11 +208,11 @@ export default function ServersPage() {
   }, [activeTab, user?.id]);
 
   const stepsValid = [
-    hostname.trim().length > 0,
+    hostname.trim().length >= 3 && !hostnameError,
     !!location,
     !!os,
     !!planType,
-    sshKeys.some(key => key.trim().length > 0),
+    sshKeys.some(key => key.trim().length > 0) && sshKeyErrors.every((error, i) => !error || sshKeys[i].trim().length === 0),
   ];
 
   const onSubmit = async (e?: React.FormEvent) => {
@@ -385,7 +466,16 @@ export default function ServersPage() {
                 {step === 0 && (
                   <div className="space-y-3">
                     <Label className="text-white">Hostname</Label>
-                    <Input value={hostname} onChange={(e) => setHostname(e.target.value)} placeholder="e.g. prod-ubuntu-01" className="bg-black text-white border-white/10" />
+                    <Input 
+                      value={hostname} 
+                      onChange={(e) => handleHostnameChange(e.target.value)} 
+                      placeholder="e.g. prod-ubuntu-01" 
+                      className={`bg-black text-white border-white/10 ${hostnameError ? 'border-red-500' : ''}`}
+                    />
+                    {hostnameError && (
+                      <p className="text-red-400 text-xs mt-1">{hostnameError}</p>
+                    )}
+                    <p className="text-white/50 text-xs">Must be 3-63 characters, no spaces, only letters, numbers, and hyphens</p>
                   </div>
                 )}
 
@@ -502,7 +592,7 @@ export default function ServersPage() {
 
                     <div>
                       <Label className="text-white mb-3 block">Select Plan</Label>
-                      <div className="overflow-x-auto">
+                      <div className="overflow-x-auto scrollbar-thin">
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="text-left text-white/60 border-b border-white/10">
@@ -572,7 +662,7 @@ export default function ServersPage() {
                                   size="sm"
                                   variant="ghost"
                                   className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7"
-                                  onClick={() => setSshKeys(sshKeys.filter((_, i) => i !== idx))}
+                                  onClick={() => removeSshKey(idx)}
                                 >
                                   Remove
                                 </Button>
@@ -580,34 +670,38 @@ export default function ServersPage() {
                             </div>
                             <textarea
                               value={key}
-                              onChange={(e) => {
-                                const newKeys = [...sshKeys];
-                                newKeys[idx] = e.target.value;
-                                setSshKeys(newKeys);
-                              }}
+                              onChange={(e) => handleSshKeyChange(idx, e.target.value)}
                               placeholder="ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... user@hostname&#10;or&#10;ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@hostname"
-                              className="w-full bg-white/5 text-white border-2 border-white/20 focus:border-[#60A5FA] focus:ring-2 focus:ring-[#60A5FA]/20 rounded-lg p-3 text-xs font-mono resize-none transition-all placeholder:text-white/30"
+                              className={`w-full bg-white/5 text-white border-2 ${sshKeyErrors[idx] && key.trim().length > 0 ? 'border-red-500' : 'border-white/20'} focus:border-[#60A5FA] focus:ring-2 focus:ring-[#60A5FA]/20 rounded-lg p-3 text-xs font-mono resize-none transition-all placeholder:text-white/30`}
                               rows={4}
                             />
+                            {sshKeyErrors[idx] && key.trim().length > 0 && (
+                              <p className="text-red-400 text-xs mt-1 flex items-start gap-1">
+                                <FaExclamationTriangle className="mt-0.5 flex-shrink-0" />
+                                <span>{sshKeyErrors[idx]}</span>
+                              </p>
+                            )}
                           </div>
                         ))}
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="mt-4 bg-white/5 hover:bg-white/10 text-white border-white/20 hover:border-white/30"
-                        onClick={() => setSshKeys([...sshKeys, ""])}
-                      >
-                        + Add Another Key
-                      </Button>
-                      <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                        <div className="flex gap-2">
-                          <FaInfoCircle className="text-blue-400 mt-0.5 flex-shrink-0" />
-                          <div className="text-xs text-white/80">
-                            <p className="font-medium text-white mb-1">How to generate SSH keys:</p>
-                            <code className="block bg-black/50 px-2 py-1 rounded mt-1 text-white/90">ssh-keygen -t ed25519 -C "your_email@example.com"</code>
-                            <p className="mt-2 text-white/70">Then copy the contents of <code className="bg-black/50 px-1 rounded">~/.ssh/id_ed25519.pub</code></p>
+                      <div className="mt-4 space-y-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="bg-white/5 hover:bg-white/10 text-white border-white/20 hover:border-white/30"
+                          onClick={addSshKey}
+                        >
+                          + Add Another Key
+                        </Button>
+                        <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                          <div className="flex gap-2">
+                            <FaInfoCircle className="text-blue-400 mt-0.5 flex-shrink-0" />
+                            <div className="text-xs text-white/80">
+                              <p className="font-medium text-white mb-1">How to generate SSH keys:</p>
+                              <code className="block bg-black/50 px-2 py-1 rounded mt-1 text-white/90">ssh-keygen -t ed25519 -C "your_email@example.com"</code>
+                              <p className="mt-2 text-white/70">Then copy the contents of <code className="bg-black/50 px-1 rounded">~/.ssh/id_ed25519.pub</code></p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -627,7 +721,7 @@ export default function ServersPage() {
                           {!canAfford 
                             ? `Insufficient balance. Need ${formatCurrency(pricing.hourly - balance)}/hr more` 
                             : !stepsValid[0] 
-                            ? "Please enter a hostname" 
+                            ? hostnameError || "Please enter a valid hostname" 
                             : !stepsValid[1] 
                             ? "Please select a location" 
                             : !stepsValid[2] 
@@ -635,7 +729,7 @@ export default function ServersPage() {
                             : !stepsValid[3] 
                             ? "Please select a plan" 
                             : !stepsValid[4] 
-                            ? "Please enter at least one SSH key" 
+                            ? "Please enter at least one valid SSH key" 
                             : "Please complete all required fields"}
                         </p>
                       )}
@@ -711,7 +805,7 @@ export default function ServersPage() {
                       {!canAfford 
                         ? `Insufficient balance. Need ${formatCurrency(pricing.hourly - balance)}/hr more` 
                         : !stepsValid[0] 
-                        ? "Please enter a hostname" 
+                        ? hostnameError || "Please enter a valid hostname" 
                         : !stepsValid[1] 
                         ? "Please select a location" 
                         : !stepsValid[2] 
@@ -719,7 +813,7 @@ export default function ServersPage() {
                         : !stepsValid[3] 
                         ? "Please select a plan" 
                         : !stepsValid[4] 
-                        ? "Please enter at least one SSH key" 
+                        ? "Please enter at least one valid SSH key" 
                         : "Please complete all required fields"}
                     </p>
                   </div>
@@ -765,7 +859,7 @@ export default function ServersPage() {
           </CardHeader>
           <CardContent>
             {myLoading ? (<div className="flex justify-center py-8"><InlineLoader text="Loading servers" /></div>) : myServers.length === 0 ? (<div className="text-white/60">No servers yet.</div>) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto scrollbar-thin">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="text-left text-white/60 border-b border-white/10">
