@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { adminNotifications } from '@/lib/telegram'
-import { discordWebhooks } from '@/lib/discord-webhooks'
+// import { adminNotifications } from '@/lib/telegram'
+// import { discordWebhooks } from '@/lib/discord-webhooks'
 import crypto from 'crypto'
+import { createServerSupabase } from '@/lib/supabaseServer'
 
 export async function GET() {
   console.log('GET request to crypto callback endpoint - webhook is accessible')
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // Verify webhook signature - CURRENTLY DISABLED
     // TODO: Enable signature verification once the correct webhook secret is configured
-    const secretKey = process.env.UNPAYMENTS_API_TOKEN
+    const secretKey = process.env.UNPAYMENTS_API_SECRET
     const headerSignature = request.headers.get('x-unpayments-signature')
 
     if ((data.signature || headerSignature) && secretKey) {
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       if (computedSignature !== receivedSignature) {
         console.log('Signature verification: FAILED (skipped for now)')
         // TODO: Enable this in production
-        // return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
       } else {
         console.log('Signature verification: PASSED')
       }
@@ -65,14 +65,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Process the callback using the crypto_callback function
-    const supabase = await createClient()
+    const supabase = await createServerSupabase()
+
+    // For partially_paid status, use amount_received_usd if available
+    // Otherwise use amount_received (for full payments)
+    const actuallyPaidUSD = data.status === 'partially_paid' && data.amount_received_usd
+      ? parseFloat(data.amount_received_usd)
+      : data.amount_received ? parseFloat(data.amount_received) : null
+
     const { data: callbackResult, error: callbackError } = await supabase
       .rpc('crypto_callback', {
         p_order_id: data.order_id,
         p_payment_status: data.status,
         p_payment_id: data.order_id,
-        p_actually_paid: data.amount_received ? parseFloat(data.amount_received) : null,
-        p_outcome_amount: data.amount_received ? parseFloat(data.amount_received) : null,
+        p_actually_paid: actuallyPaidUSD,
+        p_outcome_amount: actuallyPaidUSD,
         p_outcome_currency: data.currency || null,
         p_payin_hash: null,
         p_payout_hash: null,
@@ -81,7 +88,9 @@ export async function POST(request: NextRequest) {
           processed_at: new Date().toISOString(),
           source: 'unpayments',
           confirmations: data.confirmations,
-          timestamp: data.timestamp
+          timestamp: data.timestamp,
+          amount_received_crypto: data.amount_received,
+          amount_received_usd: data.amount_received_usd
         }
       })
 
@@ -118,25 +127,25 @@ export async function POST(request: NextRequest) {
           amount_received: data.amount_received
         }
 
-        if (data.status === 'partially_paid') {
-          await adminNotifications.partialDeposit(result.user_id, result.amount_credited, result.new_balance, cryptoData)
-        } else {
-          await adminNotifications.depositPaid(result.user_id, result.amount_credited, result.new_balance, cryptoData)
-        }
+        // if (data.status === 'partially_paid') {
+        //   await adminNotifications.partialDeposit(result.user_id, result.amount_credited, result.new_balance, cryptoData)
+        // } else {
+        //   await adminNotifications.depositPaid(result.user_id, result.amount_credited, result.new_balance, cryptoData)
+        // }
 
-        // Send Discord webhook notification for wallet transaction
-        await discordWebhooks.sendWalletTransaction({
-          user_id: result.user_id,
-          transaction_id: result.transaction_id,
-          invoice_id: result.invoice_id,
-          type: 'crypto_deposit',
-          side: 'credit',
-          amount: result.amount_credited,
-          status: data.status === 'partially_paid' ? 'partially_paid' : 'approved',
-          name: `Crypto Deposit - ${data.currency || 'CRYPTO'}`,
-          description: `Order ID: ${data.order_id}\nCurrency: ${data.currency || 'N/A'}\nExpected: ${data.amount_expected || 'N/A'}\nReceived: ${data.amount_received || 'N/A'}`,
-          balance_after: result.new_balance
-        })
+        // // Send Discord webhook notification for wallet transaction
+        // await discordWebhooks.sendWalletTransaction({
+        //   user_id: result.user_id,
+        //   transaction_id: result.transaction_id,
+        //   invoice_id: result.invoice_id,
+        //   type: 'crypto_deposit',
+        //   side: 'credit',
+        //   amount: result.amount_credited,
+        //   status: data.status === 'partially_paid' ? 'partially_paid' : 'approved',
+        //   name: `Crypto Deposit - ${data.currency || 'CRYPTO'}`,
+        //   description: `Order ID: ${data.order_id}\nCurrency: ${data.currency || 'N/A'}\nExpected: ${data.amount_expected || 'N/A'}\nReceived: ${data.amount_received || 'N/A'}`,
+        //   balance_after: result.new_balance
+        // })
 
         console.log(`✅ Payment processed: ${result.amount_credited} credited to user ${result.user_id}. New balance: ${result.new_balance}`)
       } else {

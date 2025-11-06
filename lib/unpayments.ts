@@ -366,14 +366,14 @@ class UnpaymentsAPI {
 // Factory function to create Unpayments API instance
 export function createUnpaymentsAPI(): UnpaymentsAPI {
   const baseUrl = process.env.UNPAYMENTS_BASE_URL
-  const apiToken = process.env.UNPAYMENTS_API_TOKEN
+  const apiToken = process.env.UNPAYMENTS_API_KEY
 
   if (!baseUrl) {
     throw new Error('UNPAYMENTS_BASE_URL environment variable is required')
   }
 
   if (!apiToken) {
-    throw new Error('UNPAYMENTS_API_TOKEN environment variable is required')
+    throw new Error('UNPAYMENTS_API_KEY environment variable is required')
   }
 
   return new UnpaymentsAPI({

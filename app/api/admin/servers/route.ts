@@ -38,7 +38,7 @@ function withTimeout<T>(p: Promise<T>, ms = 30000): Promise<T> {
   return new Promise((resolve, reject) => {
     const id = setTimeout(() => reject(new Error("Request timed out")), ms);
     p.then((v) => { clearTimeout(id); resolve(v); })
-     .catch((e) => { clearTimeout(id); reject(e); });
+      .catch((e) => { clearTimeout(id); reject(e); });
   });
 }
 
@@ -56,12 +56,11 @@ async function proxmoxAuthCookie(apiBase: string, dispatcher: any, cfg: HostConf
           cache: "no-store",
           redirect: "follow",
           ...(tokenAuth as any),
-          // @ts-expect-error undici dispatcher
           dispatcher,
         })
       );
       if (verify.ok) return tokenAuth;
-    } catch {}
+    } catch { }
   }
 
   if (!username || !password) throw new Error("Missing Proxmox credentials in DB");
@@ -392,8 +391,8 @@ export async function DELETE(req: NextRequest) {
         dispatcher
       );
       const upid = (stop as any)?.data;
-      if (upid) await waitTask(apiBase, node, upid, auth, dispatcher, 120000).catch(() => {});
-    } catch {}
+      if (upid) await waitTask(apiBase, node, upid, auth, dispatcher, 120000).catch(() => { });
+    } catch { }
 
     // Delete VM with purge
     const delRes = await withTimeout(
@@ -409,8 +408,8 @@ export async function DELETE(req: NextRequest) {
       if (delRes.status === 404) {
         // Already gone; proceed to DB deletion
       } else {
-      const text = await delRes.text().catch(() => "");
-      throw new Error(`delete failed (${delRes.status}): ${text}`);
+        const text = await delRes.text().catch(() => "");
+        throw new Error(`delete failed (${delRes.status}): ${text}`);
       }
     } else {
       const delJson = await delRes.json().catch(() => ({} as any));

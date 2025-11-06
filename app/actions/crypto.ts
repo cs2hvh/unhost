@@ -1,49 +1,131 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getUserFromHeaders } from '@/lib/supabase/user'
-import { createUnpaymentsAPI } from '@/lib/unpayments'
-import { calculateCryptoDepositFee, formatFeeStructure } from '@/config/fees'
-import { createClient } from '@/lib/supabase/server'
+'use server'
 
-export async function POST(request: NextRequest) {
+import { cookies } from 'next/headers'
+import { createUnpaymentsAPI } from '@/lib/unpayments'
+import { calculateCryptoDepositFee, formatFeeStructure, MINIMUM_DEPOSIT_AMOUNT } from '@/config/fees'
+import { createServerSupabase } from '@/lib/supabaseServer'
+
+interface CurrencyInfo {
+  code: string
+  confirmations_required: number
+}
+
+interface GetCurrenciesResult {
+  success: boolean
+  currencies?: CurrencyInfo[]
+  error?: string
+}
+
+interface CreatePaymentParams {
+  amount: number
+  currency: string
+}
+
+interface CreatePaymentResult {
+  success: boolean
+  order_id?: string
+  amount?: string
+  fee?: string
+  total?: string
+  fee_structure?: string
+  pay_address?: string
+  currency?: string
+  status?: string
+  confirmations_required?: number
+  expires_at?: string
+  created_at?: string
+  transaction_id?: string
+  error?: string
+}
+
+/**
+ * Get supported cryptocurrencies from Unpayments
+ */
+export async function getCurrencies(): Promise<GetCurrenciesResult> {
   try {
-    const user = await getUserFromHeaders()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
+    const unpayments = createUnpaymentsAPI()
+    const currencies = unpayments.getSupportedCurrencies()
+
+    // Return currencies with their confirmation requirements
+    const currencyDetails = currencies.map(code => ({
+      code,
+      confirmations_required: unpayments.getConfirmationsRequired(code)
+    }))
+
+    return {
+      success: true,
+      currencies: currencyDetails
+    }
+  } catch (error) {
+    console.error('Error fetching Unpayments currencies:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch currencies'
+    }
+  }
+}
+
+/**
+ * Create a new crypto payment
+ */
+export async function createCryptoPayment(params: CreatePaymentParams): Promise<CreatePaymentResult> {
+  try {
+    // Get access token from cookies
+    const cookieStore = await cookies()
+    const accessToken = cookieStore.get('sb-access-token')?.value
+
+    if (!accessToken) {
+      return {
+        success: false,
+        error: 'Authentication required'
+      }
     }
 
-    const body = await request.json()
-    const { amount, currency } = body
+    // Create Supabase client with the user's access token
+    const supabase = createServerSupabase(accessToken)
 
-    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      return NextResponse.json({
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return {
+        success: false,
+        error: 'Authentication required'
+      }
+    }
+
+    const userId = user.id
+    const { amount, currency } = params
+
+    // Validate amount
+    if (!amount || isNaN(parseFloat(String(amount))) || parseFloat(String(amount)) <= 0) {
+      return {
         success: false,
         error: 'Valid amount is required'
-      }, { status: 400 })
+      }
     }
 
+    // Validate currency
     if (!currency) {
-      return NextResponse.json({
+      return {
         success: false,
         error: 'Currency is required'
-      }, { status: 400 })
+      }
     }
 
-    const baseAmount = parseFloat(amount)
+    const baseAmount = parseFloat(String(amount))
 
     // Validate amount limits
-    if (baseAmount < 20) {
-      return NextResponse.json({
+    if (baseAmount < MINIMUM_DEPOSIT_AMOUNT) {
+      return {
         success: false,
         error: 'Minimum amount is $20.00'
-      }, { status: 400 })
+      }
     }
 
     const callbackUrl = process.env.UNPAYMENTS_IPN_WEBHOOK || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
-    // Calculate fee using new fee structure
+    // Calculate fee using fee structure
     const feeAmount = calculateCryptoDepositFee(currency, baseAmount)
     const totalAmount = baseAmount + feeAmount
 
@@ -52,11 +134,11 @@ export async function POST(request: NextRequest) {
       feeAmount: feeAmount.toFixed(2),
       totalAmount: totalAmount.toFixed(2),
       currency,
-      userId: user.id,
+      userId,
       feeStructure: formatFeeStructure(currency)
     })
 
-    // Create payment with Unpaymentss
+    // Create payment with Unpayments
     const unpayments = createUnpaymentsAPI()
     const paymentResponse = await unpayments.createPayment({
       currency,
@@ -64,7 +146,7 @@ export async function POST(request: NextRequest) {
       callback_url: callbackUrl,
       expires_in_hours: 24,
       metadata: {
-        user_id: user.id,
+        user_id: userId,
         base_amount: baseAmount,
         fee_amount: feeAmount,
         fee_structure: formatFeeStructure(currency)
@@ -78,10 +160,9 @@ export async function POST(request: NextRequest) {
     const paymentData = paymentResponse.data!
 
     // Call crypto_create_payment function
-    const supabase = await createClient()
     const { data: transactionData, error: functionError } = await supabase
       .rpc('crypto_create_payment', {
-        p_user_id: user.id,
+        p_user_id: userId,
         p_order_id: paymentData.order_id,
         p_amount: baseAmount,
         p_fee_amount: feeAmount,
@@ -105,15 +186,15 @@ export async function POST(request: NextRequest) {
 
     if (functionError) {
       console.error('Failed to create payment record:', functionError)
-      return NextResponse.json({
+      return {
         success: false,
         error: 'Failed to create payment, please contact support.'
-      }, { status: 500 })
+      }
     }
 
     console.log('Payment record created successfully:', paymentData)
 
-    return NextResponse.json({
+    return {
       success: true,
       order_id: paymentData.order_id,
       amount: baseAmount.toFixed(2),
@@ -127,13 +208,13 @@ export async function POST(request: NextRequest) {
       expires_at: paymentData.expires_at,
       created_at: paymentData.created_at,
       transaction_id: transactionData?.[0]?.transaction_id,
-    })
+    }
 
   } catch (error) {
     console.error('Unpayments payment creation error:', error)
-    return NextResponse.json({
+    return {
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error'
-    }, { status: 500 })
+    }
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/serverAuth'
 import { createUnpaymentsAPI } from '@/lib/unpayments'
 
 export async function GET(
@@ -6,6 +7,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireUser(request)
+    if (auth.success === false) {
+      return Response.json(
+        { error: auth.message },
+        { status: auth.status }
+      )
+    }
+
     const orderId = (await params).id
 
     if (!orderId) {
