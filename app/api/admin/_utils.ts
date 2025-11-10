@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { createServerSupabase } from '@/lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 
 type AdminGate = {
@@ -63,6 +62,15 @@ export async function requireAdmin(req: NextRequest): Promise<AdminGate> {
     return { ok: true, email, isAdmin: true };
   }
 
+  // Check if user email matches the admin token email
+  const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
+  const adminEmail = ADMIN_TOKEN ? `${ADMIN_TOKEN}@example.com` : '';
+
+  if (adminEmail && email.toLowerCase() === adminEmail.toLowerCase()) {
+    return { ok: true, email, isAdmin: true };
+  }
+
+  // Fallback to env-based admin emails
   const adminsRaw = (process.env.ADMIN_EMAILS || '').trim();
   const wildcard = adminsRaw === '*';
   const admins = adminsRaw

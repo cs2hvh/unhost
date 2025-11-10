@@ -1,7 +1,6 @@
 'use client';
 
-import { useAuth } from '@/hooks/useAuth';
-import { useAuthToken } from '@/hooks/useAuthToken';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useWallet } from '@/hooks/useWallet';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
@@ -11,7 +10,6 @@ import { motion } from 'framer-motion';
 import {
   FaWallet,
   FaServer,
-  FaCog,
   FaChartBar,
   FaSignOutAlt,
   FaUser,
@@ -21,16 +19,12 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaChevronDown,
+  FaTicketAlt,
 } from 'react-icons/fa';
+import { useAuth } from '../provider';
+import { isAdmin } from '@/lib/utils';
 
 const sidebarItems = [
-  {
-    name: 'Dashboard',
-    href: '/dashboard',
-    icon: FaServer,
-    description: 'Overview and quick actions',
-    exact: true
-  },
   {
     name: 'Servers',
     href: '/dashboard/servers',
@@ -43,14 +37,11 @@ const sidebarItems = [
     icon: FaWallet,
     description: 'Payments and usage'
   },
-];
-
-const bottomNavItems = [
   {
-    name: 'Settings',
-    href: '/dashboard/settings',
-    icon: FaCog,
-    description: 'Account preferences'
+    name: 'Support',
+    href: '/dashboard/support',
+    icon: FaTicketAlt,
+    description: 'Get help from support'
   },
 ];
 
@@ -59,38 +50,32 @@ function DashboardContent({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, signOut, isAdmin } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const { balance, loading: walletLoading } = useWallet();
-  useAuthToken(); // Manage auth token in cookies for middleware
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [adminOpen, setAdminOpen] = useState(true);
-  const [adminServersOpen, setAdminServersOpen] = useState(true);
   const [serversOpen, setServersOpen] = useState(true);
-  const [settingsOpen, setSettingsOpen] = useState(true);
 
+  // Only redirect if auth is loaded and user is truly not authenticated
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth/signin');
+    if (!authLoading && !user) {
+      router.push('/auth');
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
+  // Redirect non-admins from admin pages
   useEffect(() => {
-    if (!loading && user && !isAdmin && pathname?.startsWith('/dashboard/admin')) {
-      router.replace('/dashboard');
+    if (!authLoading && user && pathname?.startsWith('/dashboard/admin')) {
+      const userIsAdmin = isAdmin(user);
+      if (!userIsAdmin) {
+        router.replace('/dashboard');
+      }
     }
-  }, [loading, user, isAdmin, pathname, router]);
+  }, [user, authLoading, pathname, router]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#60A5FA]/30 border-t-[#60A5FA] rounded-full animate-spin"></div>
-      </div>
-    );
-  }
 
   if (!user) {
     return null;
@@ -108,11 +93,11 @@ function DashboardContent({
         <div className="flex flex-col h-full overflow-hidden">
           {/* Sidebar top brand + collapse */}
           <div className={`px-3 ${collapsed ? 'justify-center' : 'justify-between'} flex items-center h-11 flex-shrink-0 pt-3`}>
-            <Link href="/" className={`flex items-center ${collapsed ? '' : 'gap-2'}`} title="Unserver">
+            <Link href="/" className={`flex items-center ${collapsed ? '' : 'gap-2'}`} title="Unhost">
               <div className="w-7 h-7 rounded-md bg-white/10 border border-white/10 flex items-center justify-center">
                 <span className="text-white text-sm font-semibold">U</span>
               </div>
-              {!collapsed && <span className="text-white/90 text-sm font-semibold tracking-wide">Unserver</span>}
+              {!collapsed && <span className="text-white/90 text-sm font-semibold tracking-wide">Unhost</span>}
             </Link>
             <button
               onClick={() => setCollapsed(!collapsed)}
@@ -134,16 +119,15 @@ function DashboardContent({
                   </div>
                 )}
                 {sidebarItems.filter(item => item.name !== 'Servers').map((item) => {
-                  const active = item.exact ? pathname === item.href : pathname?.startsWith(item.href);
+                  const active = pathname?.startsWith(item.href);
                   return (
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${
-                        active
-                          ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
-                      }`}
+                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 cursor-pointer ${active
+                        ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
+                        : 'text-white/70 hover:text-white hover:bg-white/5'
+                        }`}
                       title={collapsed ? item.name : undefined}
                     >
                       <div className={`p-1 rounded-lg ${active ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
@@ -164,11 +148,10 @@ function DashboardContent({
                   <button
                     type="button"
                     onClick={() => setServersOpen((v) => !v)}
-                    className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${
-                      pathname?.startsWith('/dashboard/servers')
-                        ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                        : 'text-white/70 hover:text-white hover:bg-white/5'
-                    }`}
+                    className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${pathname?.startsWith('/dashboard/servers')
+                      ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                      }`}
                     title={collapsed ? 'Servers' : undefined}
                   >
                     <div className={`p-1 rounded-lg ${pathname?.startsWith('/dashboard/servers') ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
@@ -188,11 +171,10 @@ function DashboardContent({
                         return (
                           <Link
                             href={'/dashboard/servers?view=deploy'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
+                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all cursor-pointer ${active
+                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                              }`}
                           >
                             Deploy Instance
                           </Link>
@@ -203,11 +185,10 @@ function DashboardContent({
                         return (
                           <Link
                             href={'/dashboard/servers?view=list'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
+                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all cursor-pointer ${active
+                              ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
+                              : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
+                              }`}
                           >
                             My Servers
                           </Link>
@@ -217,117 +198,31 @@ function DashboardContent({
                   )}
                 </div>
 
-                {/* Admin section with nested items */}
-                {isAdmin && (
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => setAdminOpen((v) => !v)}
-                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 ${
-                        pathname === '/dashboard/admin'
-                          ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
-                      }`}
+                {/* Admin section */}
+                {isAdmin(user) && (() => {
+                  const active = pathname === '/dashboard/admin';
+                  return (
+                    <Link
+                      key="admin"
+                      href="/dashboard/admin"
+                      className={`group flex ${collapsed ? 'justify-center' : 'items-center gap-3'} px-3 py-3 rounded-xl transition-all duration-200 cursor-pointer ${active
+                        ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
+                        : 'text-white/70 hover:text-white hover:bg-white/5'
+                        }`}
                       title={collapsed ? 'Admin' : undefined}
                     >
-                      <div className={`p-1 rounded-lg ${pathname === '/dashboard/admin' ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
+                      <div className={`p-1 rounded-lg ${active ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
                         <FaUserShield className="h-5 w-5" />
                       </div>
                       {!collapsed && (
-                        <>
-                          <span className="font-medium flex-1 text-left">Admin</span>
-                          <FaChevronDown className={`h-3.5 w-3.5 transition-transform ${adminOpen ? '' : '-rotate-90'}`} />
-                        </>
+                        <div className="flex-1">
+                          <div className="font-medium">Admin</div>
+                          <div className="text-xs text-white/50">User management</div>
+                        </div>
                       )}
-                    </button>
-
-                    {!collapsed && adminOpen && (
-                      <div className="mt-1 ml-8 space-y-1">
-                        {/* Hosts */}
-                        {(() => {
-                          const active = pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'hosts';
-                          return (
-                            <Link
-                              href={'/dashboard/admin?tab=hosts'}
-                              className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                                active
-                                  ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                  : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                              }`}
-                            >
-                              Hosts
-                            </Link>
-                          );
-                        })()}
-
-                        {/* Servers group */}
-                        <button
-                          type="button"
-                          onClick={() => setAdminServersOpen((v) => !v)}
-                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
-                            pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'servers'
-                              ? 'text-white bg-white/10 border-white/15'
-                              : 'text-white/70 border-transparent hover:text-white hover:bg-white/5 hover:border-white/10'
-                          }`}
-                        >
-                          <span className="flex-1 text-left">Servers</span>
-                          <FaChevronDown className={`h-3 w-3 transition-transform ${adminServersOpen ? '' : '-rotate-90'}`} />
-                        </button>
-                        {adminServersOpen && (
-                          <div className="ml-4 space-y-1">
-                            {(() => {
-                              const active = pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'servers' && (searchParams.get('sv') || 'provision') === 'provision';
-                              return (
-                                <Link
-                                  href={'/dashboard/admin?tab=servers&sv=provision'}
-                                  className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                                    active
-                                      ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                      : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                                  }`}
-                                >
-                                  Provision VM
-                                </Link>
-                              );
-                            })()}
-                            {(() => {
-                              const active = pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'servers' && (searchParams.get('sv') || 'provision') === 'list';
-                              return (
-                                <Link
-                                  href={'/dashboard/admin?tab=servers&sv=list'}
-                                  className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                                    active
-                                      ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                      : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                                  }`}
-                                >
-                                  Servers
-                                </Link>
-                              );
-                            })()}
-                          </div>
-                        )}
-
-                        {/* Users */}
-                        {(() => {
-                          const active = pathname === '/dashboard/admin' && (searchParams.get('tab') || 'hosts') === 'users';
-                          return (
-                            <Link
-                              href={'/dashboard/admin?tab=users'}
-                              className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                                active
-                                  ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                  : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                              }`}
-                            >
-                              Users
-                            </Link>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                )}
+                    </Link>
+                  );
+                })()}
               </div>
             </nav>
 
@@ -339,104 +234,6 @@ function DashboardContent({
                     Account
                   </div>
                 )}
-                {/* Settings section with nested items */}
-                <div>
-                  {collapsed ? (
-                    <Link
-                      href="/dashboard/settings/profile"
-                      className={`group flex justify-center px-3 py-3 rounded-xl transition-all duration-200 ${
-                        pathname?.startsWith('/dashboard/settings')
-                          ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
-                      }`}
-                      title="Settings"
-                    >
-                      <div className={`p-1 rounded-lg ${pathname?.startsWith('/dashboard/settings') ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
-                        <FaCog className="h-5 w-5" />
-                      </div>
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setSettingsOpen((v) => !v)}
-                      className={`group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 ${
-                        pathname?.startsWith('/dashboard/settings')
-                          ? 'text-white bg-gradient-to-r from-[#60A5FA]/25 to-[#3B82F6]/15 shadow-lg shadow-[#60A5FA]/10'
-                          : 'text-white/70 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      <div className={`p-1 rounded-lg ${pathname?.startsWith('/dashboard/settings') ? 'bg-[#60A5FA]/30' : 'group-hover:bg-white/10'}`}>
-                        <FaCog className="h-5 w-5" />
-                      </div>
-                      <span className="font-medium flex-1 text-left">Settings</span>
-                      <FaChevronDown className={`h-3.5 w-3.5 transition-transform ${settingsOpen ? '' : '-rotate-90'}`} />
-                    </button>
-                  )}
-                  {!collapsed && settingsOpen && (
-                    <div className="mt-1 ml-8 space-y-1">
-                      {(() => {
-                        const active = pathname === '/dashboard/settings/profile';
-                        return (
-                          <Link
-                            href={'/dashboard/settings/profile'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
-                          >
-                            Profile
-                          </Link>
-                        );
-                      })()}
-                      {(() => {
-                        const active = pathname === '/dashboard/settings/notifications';
-                        return (
-                          <Link
-                            href={'/dashboard/settings/notifications'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
-                          >
-                            Notifications
-                          </Link>
-                        );
-                      })()}
-                      {(() => {
-                        const active = pathname === '/dashboard/settings/preferences';
-                        return (
-                          <Link
-                            href={'/dashboard/settings/preferences'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
-                          >
-                            Preferences
-                          </Link>
-                        );
-                      })()}
-                      {(() => {
-                        const active = pathname === '/dashboard/settings/security';
-                        return (
-                          <Link
-                            href={'/dashboard/settings/security'}
-                            className={`group relative block py-2 pr-3 pl-4 text-sm border-l-2 transition-all ${
-                              active
-                                ? 'text-[#60A5FA] border-l-[#60A5FA] bg-[#60A5FA]/10'
-                                : 'text-white/70 border-l-transparent hover:text-white hover:border-l-[#60A5FA]/60 hover:bg-[#60A5FA]/5 hover:pl-5'
-                            }`}
-                          >
-                            Security
-                          </Link>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>
@@ -450,13 +247,13 @@ function DashboardContent({
                     <FaUser className="h-4 w-4 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-normal text-sm truncate">{user.email}</p>
+                    <p className="text-white font-normal text-sm truncate">{user.email?.split('@')[0] || user.email}</p>
                     <p className="text-white/60 text-xs">Signed in</p>
                   </div>
                 </div>
                 <button
                   onClick={signOut}
-                  className="flex items-center gap-2 text-white/80 hover:text-white transition-colors w-full px-3 py-2 border border-white/10 hover:bg-white/10 rounded-xl"
+                  className="flex items-center gap-2 text-white/80 hover:text-white transition-colors w-full px-3 py-2 border border-white/10 hover:bg-white/10 rounded-xl cursor-pointer"
                 >
                   <FaSignOutAlt className="h-4 w-4" />
                   <span className="text-sm">Sign Out</span>
@@ -464,12 +261,12 @@ function DashboardContent({
               </>
             ) : (
               <div className="flex flex-col items-center gap-2">
-                <div className="w-8 h-8 bg-white/10 border border-white/10 rounded-md flex items-center justify-center" title={user.email || ''}>
+                <div className="w-8 h-8 bg-white/10 border border-white/10 rounded-md flex items-center justify-center" title={user.email?.split('@')[0] || user.email || ''}>
                   <FaUser className="h-4 w-4 text-white" />
                 </div>
                 <button
                   onClick={signOut}
-                  className="w-8 h-8 text-white/80 hover:text-white transition-colors border border-white/10 hover:bg-white/10 rounded-md flex items-center justify-center"
+                  className="w-8 h-8 text-white/80 hover:text-white transition-colors border border-white/10 hover:bg-white/10 rounded-md flex items-center justify-center cursor-pointer"
                   title="Sign out"
                 >
                   <FaSignOutAlt className="h-4 w-4" />
@@ -528,12 +325,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#60A5FA]/30 border-t-[#60A5FA] rounded-full animate-spin"></div>
-      </div>
-    }>
-      <DashboardContent>{children}</DashboardContent>
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-[#60A5FA]/30 border-t-[#60A5FA] rounded-full animate-spin"></div>
+        </div>
+      }>
+        <DashboardContent>{children}</DashboardContent>
+      </Suspense>
+    </ErrorBoundary>
   );
 }

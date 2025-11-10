@@ -1,39 +1,20 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getUserFromHeaders } from '@/lib/supabase/user';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
 // Get wallet balance and transactions
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization');
-  const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-
-  if (!bearer) {
-    return Response.json({ ok: false, error: 'Authorization required' }, { status: 401 });
-  }
 
   try {
-    // Create supabase client with service role for admin operations
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      return Response.json({ ok: false, error: 'Server configuration error' }, { status: 500 });
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Verify the user token using the admin client
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(bearer);
-    if (userError) {
-      console.error('Wallet API - User auth error:', userError);
-      return Response.json({ ok: false, error: `Authentication failed: ${userError.message}` }, { status: 401 });
-    }
+    const user = await getUserFromHeaders();
 
     if (!user) {
       return Response.json({ ok: false, error: 'No user found' }, { status: 401 });
     }
-
+    const supabaseAdmin = await createAdminClient()
     // Get or create wallet
     const { data: wallet, error: walletError } = await supabaseAdmin
       .from('wallets')

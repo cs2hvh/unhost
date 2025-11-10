@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
-import { createServerSupabase } from "@/lib/supabaseServer";
 import { LinodeAPIClient, LINODE_PLAN_TYPES } from "@/lib/linode";
 import { calculateHourlyCost, canAffordServer, type ServerSpecs } from "@/lib/pricing";
+import { createClient } from "@/lib/supabase/server";
+import { serverCreateSchema, validateSchema, isValidationError } from "@/lib/validations/schemas";
+import { rateLimit } from "@/lib/rateLimit";
+import { validateCSRFToken } from "@/lib/security/csrf";
 
 export const dynamic = "force-dynamic";
 
@@ -16,76 +19,111 @@ function serializeError(err: unknown) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as any;
-  const authHeader = req.headers.get("authorization") || "";
-  const bearer = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7) : undefined;
-
-  const region = String(body.region || body.location || "");
-  if (!region) return Response.json({ ok: false, error: "region required" }, { status: 400 });
-
-  const supabase = createServerSupabase(bearer);
-
-  // Get Linode API token from environment
-  const linodeToken = process.env.LINODE_API_TOKEN;
-  if (!linodeToken) {
-    return Response.json({ ok: false, error: "Linode API token not configured" }, { status: 500 });
-  }
-
-  const hostname = body.hostname || `linode-${Date.now()}`;
-  const sshKeys = body.sshKeys as string[] | undefined; // Array of SSH public keys
-  const planType = body.planType as string | undefined; // Linode plan ID (e.g., g6-standard-2)
-  const os = body.os || body.image || "linode/ubuntu24.04";
-
-  if (!sshKeys || sshKeys.length === 0) {
-    return Response.json({ ok: false, error: "At least one SSH key is required" }, { status: 400 });
-  }
-
-  if (!planType) {
-    return Response.json({ ok: false, error: "planType is required" }, { status: 400 });
-  }
-
-  // Get plan details
-  const planDetails = LINODE_PLAN_TYPES[planType as keyof typeof LINODE_PLAN_TYPES];
-  if (!planDetails) {
-    return Response.json({ ok: false, error: "Invalid plan type" }, { status: 400 });
-  }
-
-  // Calculate server costs and check wallet balance
-  const serverSpecs: ServerSpecs = {
-    planType,
-    location: region,
-  };
-
-  const hourlyCost = calculateHourlyCost(serverSpecs);
-  const minimumHours = 1; // Require at least 1 hour of funding
-
-  // Check user's wallet balance
-  if (body.ownerId) {
-    try {
-      const { data: wallet } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', body.ownerId)
-        .eq('currency', 'USD')
-        .maybeSingle();
-
-      const balance = wallet?.balance ? parseFloat(wallet.balance) : 0;
-
-      if (!canAffordServer(balance, serverSpecs, minimumHours)) {
-        return Response.json({
-          ok: false,
-          error: `Insufficient wallet balance. Required: $${(hourlyCost * minimumHours).toFixed(4)}, Available: $${balance.toFixed(2)}`,
-          requiredBalance: hourlyCost * minimumHours,
-          currentBalance: balance,
-          hourlyCost
-        }, { status: 402 }); // Payment Required
-      }
-    } catch (walletError) {
-      console.warn('Wallet check failed:', walletError);
+  try {
+    // Validate CSRF token
+    if (!validateCSRFToken(req)) {
+      return Response.json(
+        { ok: false, error: "Invalid or missing CSRF token" },
+        { status: 403 }
+      );
     }
-  }
 
-  let db = { saved: false as boolean, id: null as null | number, error: null as null | string };
+    const body = await req.json();
+    
+    // Apply rate limiting per user (3 server creations per hour)
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 
+               req.headers.get('x-real-ip') || 
+               'unknown';
+    const rateLimitKey = body.ownerId ? `server-create:${body.ownerId}` : `server-create-ip:${ip}`;
+    const rateLimitResult = rateLimit(rateLimitKey, 3, 60 * 60 * 1000); // 3 per hour
+    
+    if (!rateLimitResult.allowed) {
+      return Response.json(
+        { 
+          ok: false, 
+          error: 'Too many server creation requests. Please try again later.',
+          retryAfter: (rateLimitResult as { allowed: false; retryAfter: number }).retryAfter
+        },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': String((rateLimitResult as { allowed: false; retryAfter: number }).retryAfter),
+          }
+        }
+      );
+    }
+    
+    // Validate input with Zod schema
+    const validation = validateSchema(serverCreateSchema, {
+      hostname: body.hostname,
+      region: body.region || body.location,
+      image: body.os || body.image || "linode/ubuntu24.04",
+      planType: body.planType,
+      sshKeys: body.sshKeys,
+      ownerId: body.ownerId,
+      ownerEmail: body.ownerEmail,
+    });
+
+    if (isValidationError(validation)) {
+      return Response.json(
+        { ok: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { hostname, region, image: os, planType, sshKeys, ownerId, ownerEmail } = validation.data;
+
+    const supabase = await createClient();
+
+    // Get API token from environment
+    const linodeToken = process.env.LINODE_API_TOKEN;
+    if (!linodeToken) {
+      return Response.json({ ok: false, error: "VPS API token not configured" }, { status: 500 });
+    }
+
+    // Get plan details
+    const planDetails = LINODE_PLAN_TYPES[planType as keyof typeof LINODE_PLAN_TYPES];
+    if (!planDetails) {
+      return Response.json({ ok: false, error: "Invalid plan type" }, { status: 400 });
+    }
+
+    // Calculate server costs and check wallet balance
+    const serverSpecs: ServerSpecs = {
+      planType,
+      location: region,
+    };
+
+    const hourlyCost = await calculateHourlyCost(serverSpecs);
+    const minimumHours = 1; // Require at least 1 hour of funding
+
+    // Check user's wallet balance
+    if (ownerId) {
+      try {
+        const { data: wallet } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', ownerId)
+          .eq('currency', 'USD')
+          .maybeSingle();
+
+        const balance = wallet?.balance ? parseFloat(wallet.balance) : 0;
+
+        const canAfford = await canAffordServer(balance, serverSpecs, minimumHours);
+        if (!canAfford) {
+          return Response.json({
+            ok: false,
+            error: `Insufficient wallet balance. Required: $${(hourlyCost * minimumHours).toFixed(4)}, Available: $${balance.toFixed(2)}`,
+            requiredBalance: hourlyCost * minimumHours,
+            currentBalance: balance,
+            hourlyCost
+          }, { status: 402 }); // Payment Required
+        }
+      } catch (walletError) {
+        console.warn('Wallet check failed:', walletError);
+      }
+    }
+
+    let db = { saved: false as boolean, id: null as null | number, error: null as null | string };
 
   try {
     // Create Linode client
@@ -95,7 +133,7 @@ export async function POST(req: NextRequest) {
       default_image: os,
     });
 
-    // Generate a secure random root password (Linode requires this even with SSH keys)
+    // Generate a secure random root password (API requires this even with SSH keys)
     const generatePassword = () => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
       let password = '';
@@ -111,7 +149,7 @@ export async function POST(req: NextRequest) {
       region,
       type: planType,
       image: os,
-      root_pass: generatePassword(), // Required by Linode API
+      root_pass: generatePassword(), // Required by API
       authorized_keys: sshKeys,
       private_ip: false,
       tags: body.ownerId ? [`user:${body.ownerId}`] : [],
@@ -125,6 +163,7 @@ export async function POST(req: NextRequest) {
       .from("servers")
       .insert({
         vmid: instance.id,
+        linode_id: instance.id, // Store Linode instance ID for deletion
         node: region,
         name: hostname,
         ip: primaryIP,
@@ -146,7 +185,7 @@ export async function POST(req: NextRequest) {
 
     if (insertErr) {
       // Instance was created but DB save failed - log this
-      console.error('Linode instance created but DB save failed:', {
+      console.error('Instance created but DB save failed:', {
         instanceId: instance.id,
         error: insertErr.message
       });
@@ -154,7 +193,7 @@ export async function POST(req: NextRequest) {
       // Don't delete the instance, just return error
       return Response.json({
         ok: false,
-        error: "Server created in Linode but failed to save to database. Instance ID: " + instance.id,
+        error: "Server created successfully but failed to save to database. Instance ID: " + instance.id,
         instanceId: instance.id,
         db
       }, { status: 500 });
@@ -249,8 +288,16 @@ export async function POST(req: NextRequest) {
     // Instance creation failed - nothing to clean up in DB since we haven't saved yet
     return Response.json({
       ok: false,
-      error: e?.message || "Failed to create Linode instance",
+      error: e?.message || "Failed to create VPS instance",
       errorDetails: serializeError(e)
     }, { status: 500 });
+  }
+  } catch (err) {
+    // Handle JSON parsing or validation errors
+    console.error('Server creation error:', err);
+    return Response.json({
+      ok: false,
+      error: err instanceof Error ? err.message : "Invalid request",
+    }, { status: 400 });
   }
 }

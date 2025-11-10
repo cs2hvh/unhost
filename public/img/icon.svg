@@ -1,0 +1,34 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="32" fill="url(#iconGrad)"/>
+  
+  <!-- Server rack -->
+  <rect x="18" y="16" width="28" height="32" rx="3" fill="white" opacity="0.95"/>
+  
+  <!-- Server slots -->
+  <g opacity="0.9">
+    <rect x="21" y="20" width="22" height="6" rx="1.5" fill="url(#iconGrad)"/>
+    <rect x="21" y="28" width="22" height="6" rx="1.5" fill="url(#iconGrad)"/>
+    <rect x="21" y="36" width="22" height="6" rx="1.5" fill="url(#iconGrad)"/>
+  </g>
+  
+  <!-- LED indicators -->
+  <g fill="#10b981">
+    <circle cx="23" cy="23" r="1"/>
+    <circle cx="26" cy="23" r="1"/>
+    <circle cx="23" cy="31" r="1"/>
+    <circle cx="26" cy="31" r="1"/>
+    <circle cx="23" cy="39" r="1"/>
+    <circle cx="26" cy="39" r="1"/>
+  </g>
+  
+  <!-- Slash for "Un" -->
+  <line x1="18" y1="46" x2="46" y2="18" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.95"/>
+</svg>

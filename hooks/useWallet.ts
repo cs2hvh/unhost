@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
 
 interface Wallet {
   id: number;
@@ -28,28 +27,8 @@ export function useWallet() {
       setLoading(true);
       setError(null);
 
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        setError('Authentication error');
-        setWallet(null);
-        setTransactions([]);
-        return;
-      }
-
-      const accessToken = sessionData?.session?.access_token;
-
-      if (!accessToken) {
-        setWallet(null);
-        setTransactions([]);
-        setError(null); // Not an error, just not authenticated
-        return;
-      }
-
       const res = await fetch('/api/wallet', {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         cache: 'no-store'
@@ -89,24 +68,11 @@ export function useWallet() {
 
   const addFunds = useCallback(async (amount: number, description?: string) => {
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error('Session error in addFunds:', sessionError);
-        return { success: false, error: 'Authentication error' };
-      }
-
-      const accessToken = sessionData?.session?.access_token;
-
-      if (!accessToken) {
-        return { success: false, error: 'Not authenticated' };
-      }
 
       const res = await fetch('/api/wallet', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({ amount, description }),
         cache: 'no-store'
@@ -138,17 +104,6 @@ export function useWallet() {
 
   useEffect(() => {
     loadWallet();
-  }, [loadWallet]);
-
-  // Listen for auth state changes to reload wallet
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        loadWallet();
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [loadWallet]);
 
   const balance = wallet ? parseFloat(wallet.balance) : 0;

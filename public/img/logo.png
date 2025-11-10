@@ -1,0 +1,37 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="url(#grad1)"/>
+  
+  <!-- Server rack -->
+  <rect x="140" y="120" width="232" height="272" rx="20" fill="white" opacity="0.95"/>
+  
+  <!-- Server slots -->
+  <g opacity="0.8">
+    <rect x="165" y="155" width="182" height="45" rx="10" fill="url(#grad1)"/>
+    <rect x="165" y="215" width="182" height="45" rx="10" fill="url(#grad1)"/>
+    <rect x="165" y="275" width="182" height="45" rx="10" fill="url(#grad1)"/>
+    <rect x="165" y="335" width="182" height="45" rx="10" fill="url(#grad1)"/>
+  </g>
+  
+  <!-- LED indicators -->
+  <g fill="#10b981">
+    <circle cx="180" cy="177.5" r="6"/>
+    <circle cx="200" cy="177.5" r="6"/>
+    <circle cx="180" cy="237.5" r="6"/>
+    <circle cx="200" cy="237.5" r="6"/>
+    <circle cx="180" cy="297.5" r="6"/>
+    <circle cx="200" cy="297.5" r="6"/>
+    <circle cx="180" cy="357.5" r="6"/>
+    <circle cx="200" cy="357.5" r="6"/>
+  </g>
+  
+  <!-- Slash for "Un" -->
+  <line x1="140" y1="380" x2="370" y2="130" stroke="white" stroke-width="24" stroke-linecap="round" opacity="0.9"/>
+</svg>

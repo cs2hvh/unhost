@@ -1,116 +1,178 @@
-'use client';
+'use client'
 
-import { motion } from 'framer-motion';
-import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FaWallet, FaServer, FaChartLine, FaRocket } from 'react-icons/fa';
+import { motion } from 'framer-motion'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { FaServer, FaWallet, FaTicketAlt, FaPlus, FaList, FaChartLine } from 'react-icons/fa'
+import Link from 'next/link'
+import { useUser } from '@/hooks/useUser'
+import { useWallet } from '@/hooks/useWallet'
+import { formatCurrency } from '@/lib/pricing'
 
-export default function Dashboard() {
-  const { user } = useAuth();
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5 },
+}
 
-  const fadeInUp = {
-    initial: { opacity: 0, y: 24 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.6, ease: 'easeOut' },
-  };
-
-  const stagger = {
-    animate: { transition: { staggerChildren: 0.08 } },
-  };
+export default function DashboardPage() {
+  const { user } = useUser()
+  const { balance } = useWallet()
 
   return (
-    <motion.div initial="initial" animate="animate" variants={stagger} className="space-y-8">
-      {/* Greeting Banner */}
-      <motion.div variants={fadeInUp}>
-        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.08),transparent_50%)]" />
-          <div className="p-6 md:p-8 relative">
-            <div className="h-px w-24 bg-gradient-to-r from-fuchsia-500/70 to-emerald-400/70 mb-4" />
-            <h1 className="text-2xl md:text-3xl font-semibold text-white">
-              Welcome {user?.email ? user.email.split('@')[0] : 'back'}
-            </h1>
-            <p className="text-white/70 mt-2">
-              Manage infrastructure, monitor resources, and launch servers with ease.
-            </p>
-          </div>
-        </div>
-      </motion.div>
+    <motion.div variants={fadeInUp} initial="initial" animate="animate" className="space-y-6">
+      {/* Welcome Section */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+        <p className="text-white/60">Welcome back, {user?.email?.split('@')[0] || 'User'}</p>
+      </div>
 
-      {/* Key Stats */}
-      <motion.div variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[{ label: 'Balance', value: '$0.00' }, { label: 'Active Servers', value: '0' }, { label: 'Monthly Spend', value: '$0.00' }, { label: 'Uptime', value: '99.9%' }].map((s, i) => (
-          <Card key={i} className="bg-white/5 border-white/10">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-medium text-white">{s.value}</p>
-                  <p className="text-white/60 text-sm mt-1">{s.label}</p>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/10" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </motion.div>
+      {/* Balance Card */}
+      <Card className="bg-gradient-to-r from-[#60A5FA]/20 to-[#3B82F6]/10 border-[#60A5FA]/30">
+        <CardContent className="py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/60 text-sm mb-1">Account Balance</p>
+              <p className="text-4xl font-bold text-white">{formatCurrency(balance)}</p>
+            </div>
+            <div className="w-16 h-16 rounded-full bg-[#60A5FA]/20 flex items-center justify-center">
+              <FaWallet className="text-3xl text-[#60A5FA]" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
-      <motion.div variants={fadeInUp}>
-        <h2 className="text-xl font-medium text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/dashboard/wallet">
-            <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/10 mx-auto mb-4 flex items-center justify-center">
-                  <FaWallet className="h-5 w-5 text-white" />
-                </div>
-                <h3 className="text-lg font-medium text-white mb-2">Manage Wallet</h3>
-                <p className="text-white/60 text-sm">Add funds and view transactions</p>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/dashboard/servers">
-            <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/10 mx-auto mb-4 flex items-center justify-center">
-                  <FaRocket className="h-5 w-5 text-white" />
-                </div>
-                <h3 className="text-lg font-medium text-white mb-2">Launch Server</h3>
-                <p className="text-white/60 text-sm">Deploy a new VPS instance</p>
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/dashboard/analytics">
-            <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/10 mx-auto mb-4 flex items-center justify-center">
-                  <FaChartLine className="h-5 w-5 text-white" />
-                </div>
-                <h3 className="text-lg font-medium text-white mb-2">View Analytics</h3>
-                <p className="text-white/60 text-sm">Monitor server performance</p>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-      </motion.div>
-
-      {/* Recent Activity */}
-      <motion.div variants={fadeInUp}>
-        <h2 className="text-xl font-medium text-white mb-4">Recent Activity</h2>
-        <Card className="bg-white/5 border-white/10">
-          <CardContent className="p-8">
-            <div className="text-center py-10">
-              <div className="w-14 h-14 rounded-full bg-white/10 border border-white/10 mx-auto mb-4 flex items-center justify-center">
-                <FaChartLine className="h-6 w-6 text-white/80" />
-              </div>
-              <h3 className="text-lg font-medium text-white/80 mb-2">No activity yet</h3>
-              <p className="text-white/60">Your transactions and server activities will appear here</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Deploy Server */}
+        <Card className="bg-black/50 border-white/10 hover:border-white/20 transition-all duration-300 group">
+          <CardHeader>
+            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center mb-4 group-hover:bg-white/10 transition-colors">
+              <FaPlus className="text-2xl text-white/80" />
             </div>
+            <CardTitle className="text-white">Deploy New Server</CardTitle>
+            <CardDescription className="text-white/60">
+              Create and provision a new VPS instance
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/dashboard/servers?view=create">
+              <Button className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/10">
+                <FaServer className="mr-2" />
+                Create Server
+              </Button>
+            </Link>
           </CardContent>
         </Card>
-      </motion.div>
+
+        {/* View Servers */}
+        <Card className="bg-black/50 border-white/10 hover:border-white/20 transition-all duration-300 group">
+          <CardHeader>
+            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center mb-4 group-hover:bg-white/10 transition-colors">
+              <FaList className="text-2xl text-white/80" />
+            </div>
+            <CardTitle className="text-white">My Servers</CardTitle>
+            <CardDescription className="text-white/60">
+              View and manage your existing servers
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/dashboard/servers?view=list">
+              <Button className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/10">
+                <FaServer className="mr-2" />
+                View Servers
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Support Tickets */}
+        <Card className="bg-black/50 border-white/10 hover:border-white/20 transition-all duration-300 group">
+          <CardHeader>
+            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center mb-4 group-hover:bg-white/10 transition-colors">
+              <FaTicketAlt className="text-2xl text-white/80" />
+            </div>
+            <CardTitle className="text-white">Support Tickets</CardTitle>
+            <CardDescription className="text-white/60">
+              Get help from our support team
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/dashboard/support">
+              <Button className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/10">
+                <FaTicketAlt className="mr-2" />
+                View Tickets
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Billing */}
+        <Card className="bg-black/50 border-white/10 hover:border-white/20 transition-all duration-300 group">
+          <CardHeader>
+            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center mb-4 group-hover:bg-white/10 transition-colors">
+              <FaWallet className="text-2xl text-white/80" />
+            </div>
+            <CardTitle className="text-white">Billing</CardTitle>
+            <CardDescription className="text-white/60">
+              Manage payments and view usage
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/dashboard/billing">
+              <Button className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/10">
+                <FaWallet className="mr-2" />
+                Manage Billing
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Add Balance */}
+        <Card className="bg-black/50 border-white/10 hover:border-white/20 transition-all duration-300 group">
+          <CardHeader>
+            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center mb-4 group-hover:bg-white/10 transition-colors">
+              <FaChartLine className="text-2xl text-white/80" />
+            </div>
+            <CardTitle className="text-white">Add Balance</CardTitle>
+            <CardDescription className="text-white/60">
+              Top up your account with cryptocurrency
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/dashboard/billing?action=deposit">
+              <Button className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/10">
+                <FaPlus className="mr-2" />
+                Add Funds
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Stats */}
+      <Card className="bg-black/50 border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white">Quick Stats</CardTitle>
+          <CardDescription className="text-white/60">Overview of your account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
+              <p className="text-white/60 text-sm mb-2">Account Balance</p>
+              <p className="text-2xl font-bold text-white">{formatCurrency(balance)}</p>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
+              <p className="text-white/60 text-sm mb-2">Active Servers</p>
+              <p className="text-2xl font-bold text-white">-</p>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
+              <p className="text-white/60 text-sm mb-2">Open Tickets</p>
+              <p className="text-2xl font-bold text-white">-</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </motion.div>
-  );
+  )
 }

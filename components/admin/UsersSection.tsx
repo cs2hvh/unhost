@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDateTime } from '@/lib/datetime';
 import { UserRow } from './types';
 import { InlineLoader } from '@/components/ui/loader';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 type UsersSectionProps = {
   isAdmin: boolean;

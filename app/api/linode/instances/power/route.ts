@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { LinodeAPIClient } from "@/lib/linode";
+import { serverPowerActionSchema, validateSchema, isValidationError } from "@/lib/validations/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -10,31 +11,34 @@ function getBearer(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const bearer = getBearer(req);
-  if (!bearer) return Response.json({ ok: false, error: "Not authenticated" }, { status: 401 });
+  try {
+    const bearer = getBearer(req);
+    if (!bearer) return Response.json({ ok: false, error: "Not authenticated" }, { status: 401 });
 
-  // Verify user
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  const authClient = createClient(url, anon, {
-    auth: { persistSession: false },
-    global: { headers: { Authorization: `Bearer ${bearer}` } as any },
-  } as any);
+    // Verify user
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const authClient = createClient(url, anon, {
+      auth: { persistSession: false },
+      global: { headers: { Authorization: `Bearer ${bearer}` } as any },
+    } as any);
 
-  const { data: userData } = await authClient.auth.getUser();
-  const userId = userData?.user?.id as string | undefined;
-  if (!userId) return Response.json({ ok: false, error: "Not authenticated" }, { status: 401 });
+    const { data: userData } = await authClient.auth.getUser();
+    const userId = userData?.user?.id as string | undefined;
+    if (!userId) return Response.json({ ok: false, error: "Not authenticated" }, { status: 401 });
 
-  const body = (await req.json().catch(() => ({}))) as any;
-  const action = String(body.action || '').toLowerCase();
-  const serverId = body.serverId as string;
+    const body = await req.json();
+    
+    // Validate input
+    const validation = validateSchema(serverPowerActionSchema, body);
+    if (isValidationError(validation)) {
+      return Response.json(
+        { ok: false, error: validation.error },
+        { status: 400 }
+      );
+    }
 
-  if (!serverId || !['start', 'stop', 'reboot'].includes(action)) {
-    return Response.json({
-      ok: false,
-      error: "serverId and valid action (start|stop|reboot) are required"
-    }, { status: 400 });
-  }
+    const { serverId, action } = validation.data;
 
   // Use service role key for database operations
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -64,7 +68,7 @@ export async function POST(req: NextRequest) {
 
   const linodeToken = process.env.LINODE_API_TOKEN;
   if (!linodeToken) {
-    return Response.json({ ok: false, error: "Linode API token not configured" }, { status: 500 });
+    return Response.json({ ok: false, error: "VPS API token not configured" }, { status: 500 });
   }
 
   try {
@@ -99,5 +103,12 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true, action, instanceId, region, status: status || null });
   } catch (e: any) {
     return Response.json({ ok: false, error: e?.message || String(e) }, { status: 500 });
+  }
+  } catch (err) {
+    console.error('Power action error:', err);
+    return Response.json({
+      ok: false,
+      error: err instanceof Error ? err.message : "Invalid request"
+    }, { status: 400 });
   }
 }

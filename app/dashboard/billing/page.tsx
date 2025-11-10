@@ -5,6 +5,8 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useWallet } from '@/hooks/useWallet';
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   FaHistory,
   FaArrowUp,

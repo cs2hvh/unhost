@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import LineChart from "@/components/ui/line-chart";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { FaPlay, FaRedo, FaPowerOff, FaCopy, FaMicrochip, FaMemory, FaHdd, FaThumbsUp, FaSync, FaTrash } from "react-icons/fa";
 import Image from "next/image";
 import { getFlagUrl } from "@/lib/linode";
@@ -27,6 +27,7 @@ export default function VmMonitorPage({ params }: { params: { id: string } }) {
   const [rebuildUnderstand, setRebuildUnderstand] = useState(false);
 
   const loadServer = useCallback(async () => {
+    const supabase = createClient();
     const { data, error } = await supabase.from("servers").select("*").eq("id", id).maybeSingle();
     if (!error) setServer(data);
   }, [id]);
@@ -35,6 +36,7 @@ export default function VmMonitorPage({ params }: { params: { id: string } }) {
     if (!server?.id) return;
     setSyncing(true);
     try {
+      const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       const res = await fetch("/api/linode/instances/sync", {
@@ -75,6 +77,7 @@ export default function VmMonitorPage({ params }: { params: { id: string } }) {
       try {
         setMetricsLoading(true);
         setMetricsError(null);
+        const supabase = createClient();
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData?.session?.access_token;
         const res = await fetch(`/api/linode/instances/metrics?serverId=${encodeURIComponent(id)}&range=${range}`, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
@@ -158,6 +161,7 @@ export default function VmMonitorPage({ params }: { params: { id: string } }) {
     if (!server?.id) return;
     setActing(action);
     try {
+      const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       const res = await fetch("/api/linode/instances/power", {
@@ -176,6 +180,7 @@ export default function VmMonitorPage({ params }: { params: { id: string } }) {
     if (!server?.id) return;
     setActing("stop"); // Use stop as placeholder for rebuild
     try {
+      const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       const res = await fetch("/api/linode/instances/rebuild", {
