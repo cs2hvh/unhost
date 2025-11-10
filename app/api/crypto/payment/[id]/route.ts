@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireUser } from '@/lib/serverAuth'
 import { createUnpaymentsAPI } from '@/lib/unpayments'
+import { getUserFromHeaders } from '@/lib/supabase/user'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireUser(request)
-    if (auth.success === false) {
+    const user = await getUserFromHeaders()
+    if (!user) {
       return Response.json(
-        { error: auth.message },
-        { status: auth.status }
+        { error: "User not found" },
+        { status: 403 }
       )
     }
 

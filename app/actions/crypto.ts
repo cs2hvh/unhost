@@ -1,9 +1,8 @@
 'use server'
 
-import { cookies } from 'next/headers'
 import { createUnpaymentsAPI } from '@/lib/unpayments'
 import { calculateCryptoDepositFee, formatFeeStructure, MINIMUM_DEPOSIT_AMOUNT } from '@/config/fees'
-import { createServerSupabase } from '@/lib/supabaseServer'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 interface CurrencyInfo {
   code: string
@@ -70,19 +69,8 @@ export async function getCurrencies(): Promise<GetCurrenciesResult> {
  */
 export async function createCryptoPayment(params: CreatePaymentParams): Promise<CreatePaymentResult> {
   try {
-    // Get access token from cookies
-    const cookieStore = await cookies()
-    const accessToken = cookieStore.get('sb-access-token')?.value
-
-    if (!accessToken) {
-      return {
-        success: false,
-        error: 'Authentication required'
-      }
-    }
-
     // Create Supabase client with the user's access token
-    const supabase = createServerSupabase(accessToken)
+    const supabase = createAdminClient()
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()

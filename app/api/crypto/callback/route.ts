@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // import { adminNotifications } from '@/lib/telegram'
 // import { discordWebhooks } from '@/lib/discord-webhooks'
 import crypto from 'crypto'
-import { createServerSupabase } from '@/lib/supabaseServer'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET() {
   console.log('GET request to crypto callback endpoint - webhook is accessible')
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Process the callback using the crypto_callback function
-    const supabase = await createServerSupabase()
+    const supabase = await createClient()
 
     // For partially_paid status, use amount_received_usd if available
     // Otherwise use amount_received (for full payments)

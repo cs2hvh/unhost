@@ -1,7 +1,7 @@
 // Fee configuration for different currencies and operations
 
 // Minimum deposit amount in USD
-export const MINIMUM_DEPOSIT_AMOUNT = 10
+export const MINIMUM_DEPOSIT_AMOUNT = 20
 
 export interface FeeStructure {
     type: 'fixed' | 'percentage_plus_fixed'
