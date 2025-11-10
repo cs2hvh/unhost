@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { createNOWPaymentsAPI } from '@/lib/nowpayments'
+import { createUnpaymentsAPI } from '@/lib/unpayments'
 import PaymentClient from './payment-client'
 import { Suspense } from 'react'
 import { Loader2 } from 'lucide-react'
@@ -12,9 +12,10 @@ interface PaymentPageProps {
 
 async function getPaymentData(paymentId: string) {
   try {
-    const nowPayments = createNOWPaymentsAPI()
-    const paymentData = await nowPayments.getPaymentStatus(paymentId)
-    return paymentData
+    const unpayments = createUnpaymentsAPI()
+    const paymentData = await unpayments.getPaymentStatus(paymentId)
+    console.log('Fetched payment data:', paymentData)
+    return paymentData.data
   } catch (error) {
     console.error('Failed to fetch payment data:', error)
     return null
@@ -35,8 +36,6 @@ export default async function PaymentPage({ params }: PaymentPageProps) {
   if (!paymentData) {
     notFound()
   }
-
-  // const isPaymentActive = !['finished', 'failed', 'refunded', 'expired'].includes(paymentData.payment_status.toLowerCase())
 
   return (
     <div className="min-h-screen bg-background">

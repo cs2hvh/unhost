@@ -1,27 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createNOWPaymentsAPI } from '@/lib/nowpayments'
+import { requireUser } from '@/lib/serverAuth'
+import { createUnpaymentsAPI } from '@/lib/unpayments'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const paymentId = (await params).id
+    const auth = await requireUser(request)
+    if (auth.success === false) {
+      return Response.json(
+        { error: auth.message },
+        { status: auth.status }
+      )
+    }
 
-    if (!paymentId) {
+    const orderId = (await params).id
+
+    if (!orderId) {
       return NextResponse.json({
         success: false,
-        error: 'Payment ID is required'
+        error: 'Order ID is required'
       }, { status: 400 })
     }
 
-    // Get payment status from NOWPayments
-    const nowPayments = createNOWPaymentsAPI()
-    const paymentData = await nowPayments.getPaymentStatus(paymentId)
+    // Get payment status from Unpayments
+    const unpayments = createUnpaymentsAPI()
+    const paymentResponse = await unpayments.getPaymentStatus(orderId)
+
+    if (!paymentResponse.success || !paymentResponse.data) {
+      return NextResponse.json({
+        success: false,
+        error: 'Payment not found'
+      }, { status: 404 })
+    }
 
     return NextResponse.json({
       success: true,
-      payment: paymentData
+      payment: paymentResponse.data
     })
 
   } catch (error) {
