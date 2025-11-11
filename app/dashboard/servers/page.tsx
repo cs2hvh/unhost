@@ -21,6 +21,7 @@ import { Loader, InlineLoader } from "@/components/ui/loader";
 import { useConfirmation } from "@/components/ui/confirmation-dialog";
 import toast from "react-hot-toast";
 import { getCSRFTokenManager } from "@/lib/security/csrf";
+import { Cpu } from "lucide-react";
 
 type Option = { id: string; name?: string; host?: string; ip?: string; mac?: string | null; location?: string };
 
@@ -51,6 +52,7 @@ export default function ServersPage() {
   const [os, setOs] = useState<string>("linode/ubuntu24.04");
   const [planType, setPlanType] = useState<string>("g6-standard-2"); // Default plan
   const [planCategory, setPlanCategory] = useState<string>("shared");
+  const [selectedCpuId, setSelectedCpuId] = useState<string | null>(null);
   const [sshKeys, setSshKeys] = useState<string[]>([""]);
   const [step, setStep] = useState(0);
   
@@ -63,6 +65,8 @@ export default function ServersPage() {
   const [canAfford, setCanAfford] = useState(false);
   const [estimatedRuntime, setEstimatedRuntime] = useState(0);
   const [allPlansPricing, setAllPlansPricing] = useState<Record<string, { hourly: number; monthly: number }>>({});
+  const [cpuTypes, setCpuTypes] = useState<Record<string, Array<{id: string, cpu_name: string, cpu_description?: string}>>>({});
+  const [cpusByCategory, setCpusByCategory] = useState<Array<{id: string, cpu_name: string, cpu_description?: string}>>([]);
 
   // My Servers
   const [myServers, setMyServers] = useState<any[]>([]);
@@ -89,6 +93,49 @@ export default function ServersPage() {
       });
       setLocation((prev) => prev ?? json.regions?.[0]?.id);
       if (json.images?.length > 0) setOs(json.images[0].id || json.images[0].label || os);
+      
+      // Load CPU types
+      try {
+        const cpuRes = await fetch("/api/cpu-types"); // Changed to public endpoint
+        const cpuJson = await cpuRes.json();
+        if (cpuJson.ok && cpuJson.cpuTypes) {
+          // Group CPUs by category
+          const cpuMap: Record<string, Array<{id: string, cpu_name: string, cpu_description?: string}>> = {};
+          cpuJson.cpuTypes.forEach((cpu: any) => {
+            if (!cpuMap[cpu.plan_category]) {
+              cpuMap[cpu.plan_category] = [];
+            }
+            cpuMap[cpu.plan_category].push({
+              id: cpu.id,
+              cpu_name: cpu.cpu_name,
+              cpu_description: cpu.cpu_description
+            });
+          });
+          setCpuTypes(cpuMap);
+          
+          // Set default CPU for shared category
+          if (cpuMap['shared'] && cpuMap['shared'].length > 0) {
+            setSelectedCpuId(cpuMap['shared'][0].id);
+            setCpusByCategory(cpuMap['shared']);
+          }
+        }
+      } catch (e) {
+        console.log('Could not load CPU types:', e);
+        // Use defaults from LINODE_PLAN_CATEGORIES
+        const defaultCpuMap: Record<string, Array<{id: string, cpu_name: string, cpu_description?: string}>> = {};
+        Object.entries(LINODE_PLAN_CATEGORIES).forEach(([key, val]) => {
+          defaultCpuMap[key] = [{
+            id: `default-${key}`,
+            cpu_name: val.defaultCpu || key,
+            cpu_description: val.label
+          }];
+        });
+        setCpuTypes(defaultCpuMap);
+        if (defaultCpuMap['shared']) {
+          setSelectedCpuId(defaultCpuMap['shared'][0].id);
+          setCpusByCategory(defaultCpuMap['shared']);
+        }
+      }
     } catch (e: any) {
       setError(e?.message || "Failed to load options");
     } finally {
@@ -494,31 +541,91 @@ export default function ServersPage() {
                 )}
 
                 {step === 3 && (
-                  <div className="space-y-4">
-                    <Label className="text-white">Plan Category</Label>
-                    <div className="flex gap-2 mb-4">
-                      {Object.entries(LINODE_PLAN_CATEGORIES).map(([key, label]) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => {
-                            setPlanCategory(key);
-                            const firstPlan = plansByCategory[key]?.[0];
-                            if (firstPlan) setPlanType(firstPlan.id);
-                          }}
-                          className={`px-4 py-2 rounded-lg border transition ${
-                            planCategory === key
-                              ? 'bg-[#60A5FA]/10 border-[#60A5FA] text-white'
-                              : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
+                  <div className="space-y-6">
+                    {/* Step 3a: Select Plan Type/Category */}
+                    <div>
+                      <Label className="text-white mb-3 block">Select Plan Type</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {Object.entries(LINODE_PLAN_CATEGORIES).map(([key, info]) => {
+                          return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => {
+                              setPlanCategory(key);
+                              const firstPlan = plansByCategory[key]?.[0];
+                              if (firstPlan) setPlanType(firstPlan.id);
+                              
+                              // Update available CPUs for this category
+                              const cpusForCategory = cpuTypes[key] || [];
+                              setCpusByCategory(cpusForCategory);
+                              
+                              // Auto-select first CPU
+                              if (cpusForCategory.length > 0) {
+                                setSelectedCpuId(cpusForCategory[0].id);
+                              }
+                            }}
+                            className={`p-4 rounded-lg border transition text-left ${
+                              planCategory === key
+                                ? 'bg-[#60A5FA]/10 border-[#60A5FA] text-white'
+                                : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                planCategory === key ? 'bg-[#60A5FA]/20' : 'bg-white/5'
+                              }`}>
+                                <Cpu className="h-5 w-5" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-sm mb-0.5">{info.label}</div>
+                                <div className="text-xs text-white/60">
+                                  {cpuTypes[key]?.length || 0} CPU{cpuTypes[key]?.length !== 1 ? 's' : ''} available
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
+                    {/* Step 3b: Select CPU (if multiple available) */}
+                    {cpusByCategory.length > 0 && (
+                      <div>
+                        <Label className="text-white mb-3 block">Select Processor</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {cpusByCategory.map((cpu) => (
+                            <button
+                              key={cpu.id}
+                              type="button"
+                              onClick={() => setSelectedCpuId(cpu.id)}
+                              className={`p-4 rounded-lg border transition text-left ${
+                                selectedCpuId === cpu.id
+                                  ? 'bg-[#60A5FA]/10 border-[#60A5FA] text-white'
+                                  : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                              }`}
+                            >
+                              <div className="font-semibold text-base mb-1">{cpu.cpu_name}</div>
+                              {cpu.cpu_description && (
+                                <div className="text-xs text-white/60">{cpu.cpu_description}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 3c: Select Plan Size */}
                     <div>
-                      <Label className="text-white mb-3 block">Select Plan</Label>
+                      <Label className="text-white mb-3 flex items-center gap-2">
+                        Select Plan
+                        {cpusByCategory.length > 0 && selectedCpuId && (
+                          <span className="text-white/60 text-sm font-normal">
+                            • {cpusByCategory.find(c => c.id === selectedCpuId)?.cpu_name}
+                          </span>
+                        )}
+                      </Label>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>

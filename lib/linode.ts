@@ -107,12 +107,13 @@ export function getFlagUrl(countryCode: string, size: number = 64): string {
   return `https://flagsapi.com/${countryCode}/shiny/${size}.png`;
 }
 
-// Plan categories
+// Plan categories with default CPU names
 export const LINODE_PLAN_CATEGORIES = {
-  'shared': 'Shared CPU',
-  'dedicated': 'Dedicated CPU',
-  'highmem': 'High Memory',
-  'premium': 'Premium CPU',
+  'shared': { label: 'Shared CPU', defaultCpu: 'Intel Xeon 2334S' },
+  'dedicated': { label: 'Dedicated CPU', defaultCpu: 'Intel Xeon 4343' },
+  'highmem': { label: 'High Memory', defaultCpu: 'Intel Xeon 5644' },
+  'premium': { label: 'Premium CPU', defaultCpu: 'Intel Xeon 5644' },
+  'storage': { label: 'Storage Optimized', defaultCpu: 'Intel Xeon 5644' },
 } as const;
 
 // Common plan types (official pricing as of 2025)

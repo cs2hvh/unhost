@@ -49,13 +49,26 @@ const PricingSection = dynamic(() => import('@/components/admin/PricingSection')
   ssr: false
 });
 
-type TabKey = 'servers' | 'users' | 'tickets' | 'pricing';
+const CPUTypesSection = dynamic<{ getAccessToken: () => Promise<string | null> }>(
+  () => import('@/components/admin/CPUTypesSection'),
+  {
+    loading: () => (
+      <div className="flex items-center justify-center py-12">
+        <Loader size="lg" color="white" />
+      </div>
+    ),
+    ssr: false
+  }
+);
+
+type TabKey = 'servers' | 'users' | 'tickets' | 'pricing' | 'cpu-types';
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'servers', label: 'Servers' },
   { key: 'users', label: 'Users' },
   { key: 'tickets', label: 'Support Tickets' },
   { key: 'pricing', label: 'Pricing' },
+  { key: 'cpu-types', label: 'CPU Types' },
 ];
 
 export default function AdminPage() {
@@ -68,7 +81,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as TabKey | null;
-    if (tabParam && (tabParam === 'servers' || tabParam === 'users' || tabParam === 'tickets' || tabParam === 'pricing')) {
+    if (tabParam && (tabParam === 'servers' || tabParam === 'users' || tabParam === 'tickets' || tabParam === 'pricing' || tabParam === 'cpu-types')) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -123,6 +136,10 @@ export default function AdminPage() {
 
         {activeTab === 'pricing' && (
           <PricingSection getAccessToken={getAccessToken} />
+        )}
+
+        {activeTab === 'cpu-types' && (
+          <CPUTypesSection getAccessToken={getAccessToken} />
         )}
       </div>
     </AdminProtection>

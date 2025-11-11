@@ -5,6 +5,7 @@ import { InlineLoader } from '@/components/ui/loader';
 import toast from 'react-hot-toast';
 import { LINODE_PLAN_TYPES } from '@/lib/linode';
 import { clearPricingCache } from '@/lib/pricingDb';
+import { Cpu } from 'lucide-react';
 
 interface PricingEntry {
   id: string;
@@ -12,6 +13,13 @@ interface PricingEntry {
   hourly_price: number;
   monthly_price: number;
   is_active: boolean;
+}
+
+interface CPUType {
+  id: string;
+  plan_category: string;
+  cpu_name: string;
+  cpu_description?: string | null;
 }
 
 interface PlanDisplay {
@@ -25,6 +33,7 @@ interface PlanDisplay {
   custom_monthly?: number;
   pricing_id?: string;
   is_active: boolean;
+  cpu_name?: string;
 }
 
 interface PricingSectionProps {
@@ -51,21 +60,35 @@ export function PricingSection({ getAccessToken }: PricingSectionProps) {
       }
 
       // Fetch custom pricing from database
-      const response = await fetch('/api/admin/pricing', {
+      const pricingResponse = await fetch('/api/admin/pricing', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const data = await response.json();
-      const customPricing = data.ok ? data.pricing : [];
+      const pricingData = await pricingResponse.json();
+      const customPricing = pricingData.ok ? pricingData.pricing : [];
       
+      // Fetch CPU types
+      const cpuResponse = await fetch('/api/admin/cpu-types', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const cpuData = await cpuResponse.json();
+      const cpuTypes = cpuData.ok ? cpuData.cpuTypes : [];
+
       // Build pricing map
       const pricingMap = new Map<string, PricingEntry>();
       customPricing.forEach((p: PricingEntry) => {
         pricingMap.set(p.plan_id, p);
       });
 
-      // Combine Linode plans with custom pricing
+      // Build CPU map
+      const cpuMap = new Map<string, string>();
+      cpuTypes.forEach((cpu: CPUType) => {
+        cpuMap.set(cpu.plan_category, cpu.cpu_name);
+      });
+
+      // Combine Linode plans with custom pricing and CPU names
       const allPlans: PlanDisplay[] = Object.entries(LINODE_PLAN_TYPES).map(([id, plan]) => {
         const custom = pricingMap.get(id);
+        const cpuName = cpuMap.get(plan.category);
         return {
           plan_id: id,
           label: plan.label,
@@ -76,7 +99,8 @@ export function PricingSection({ getAccessToken }: PricingSectionProps) {
           custom_hourly: custom?.hourly_price,
           custom_monthly: custom?.monthly_price,
           pricing_id: custom?.id,
-          is_active: custom?.is_active ?? true
+          is_active: custom?.is_active ?? true,
+          cpu_name: cpuName
         };
       });
 
@@ -240,19 +264,21 @@ export function PricingSection({ getAccessToken }: PricingSectionProps) {
     return <div className="flex justify-center p-12"><Loader /></div>;
   }
 
-  // Group plans by category
-  const groupedPlans = plans.reduce((acc, plan) => {
-    if (!acc[plan.category]) acc[plan.category] = [];
-    acc[plan.category].push(plan);
+  // Group plans by CPU name, then by category
+  const groupedByCPU = plans.reduce((acc, plan) => {
+    const cpuName = plan.cpu_name || 'Unknown CPU';
+    if (!acc[cpuName]) acc[cpuName] = {};
+    if (!acc[cpuName][plan.category]) acc[cpuName][plan.category] = [];
+    acc[cpuName][plan.category].push(plan);
     return acc;
-  }, {} as Record<string, PlanDisplay[]>);
+  }, {} as Record<string, Record<string, PlanDisplay[]>>);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-white">Server Pricing Management</h2>
-          <p className="text-white/60 mt-1">Edit pricing for Linode server plans. Changes apply immediately to new servers.</p>
+          <p className="text-white/60 mt-1">Edit pricing for Linode server plans. Plans are grouped by CPU processor type.</p>
         </div>
         <button
           onClick={loadPlansWithPricing}
@@ -263,8 +289,24 @@ export function PricingSection({ getAccessToken }: PricingSectionProps) {
         </button>
       </div>
 
-      <div className="space-y-8">
-        {Object.entries(groupedPlans).map(([category, categoryPlans]) => (
+      <div className="space-y-10">
+        {Object.entries(groupedByCPU).map(([cpuName, categories]) => (
+          <div key={cpuName} className="space-y-6">
+            {/* CPU Header */}
+            <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
+                <Cpu className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{cpuName}</h2>
+                <p className="text-white/50 text-sm">
+                  {Object.values(categories).reduce((sum, plans) => sum + plans.length, 0)} plans
+                </p>
+              </div>
+            </div>
+
+            {/* Categories under this CPU */}
+            {Object.entries(categories).map(([category, categoryPlans]) => (
           <div key={category}>
             <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
               <span className={`px-3 py-1 rounded text-sm font-medium border ${getCategoryColor(category)}`}>
@@ -386,6 +428,8 @@ export function PricingSection({ getAccessToken }: PricingSectionProps) {
             </div>
           </div>
         ))}
+          </div>
+        ))}
       </div>
 
       {plans.length === 0 && (
@@ -396,9 +440,9 @@ export function PricingSection({ getAccessToken }: PricingSectionProps) {
 
       <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-lg">
         <div className="text-sm text-white/70">
-          <strong className="text-white">Note:</strong> Plans show Linode's default pricing. 
+          <strong className="text-white">Note:</strong> Plans show Linode's default pricing grouped by CPU processor. 
           Click edit to set custom pricing. Custom prices are highlighted in <span className="text-green-400">green</span>.
-          Click "Reset" to revert to Linode defaults.
+          Click "Reset" to revert to Linode defaults. Manage CPU names in the "CPU Types" tab.
         </div>
       </div>
     </div>
